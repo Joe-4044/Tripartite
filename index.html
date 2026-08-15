@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Nokora:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0e0e0e;
+    --panel:     #141414;
+    --card:      #1c1c1c;
+    --card2:     #222222;
+    --border:    #2a2a2a;
+    --border2:   #1f1f1f;
+    --text:      #e8e6e0;
+    --text2:     #888880;
+    --text3:     #555550;
+    --text4:     #333330;
+    --now:       #e05a4a;
+    --radius:    10px;
+    --hour-px:   64px;
+    --half-line: #181818;
+    --toggle-bg: #222;
+    --toggle-knob: #555;
+
+    /* Period anchor colors */
+    --wind-bg:    #af9f82; --wind-br:    #d4a574; --wind-text:   #483c30;
+    --echo-bg:    #122a20; --echo-br:    #183d26; --echo-text:   #7fd474;
+    --fallow-bg:  #2a195b; --fallow-br:  #311d79; --fallow-text: #b4a2d3;
+
+    /* Task type colors */
+    --hb-bg:   #2a1f12; --hb-br:   #3d2a18; --hb-text:  #d4a574;
+    --med-bg:  #1a1f14; --med-br:  #2a3020; --med-text: #9aaa7a;
+    --low-bg:  #3c270e; --low-br:  #794e1d; --low-text: #ae8155;
+
+    /* Section divider colors */
+    --div-wind:   #c8b89a;
+    --div-echo:   #4a7c59;
+    --div-fallow: #2a4a7a;
+
+    /* Studio save button */
+    --save-bg: #1a1f2a;
+  }
+
+  html.light {
+    --bg:        #f4f3f0;
+    --panel:     #ffffff;
+    --card:      #f0efec;
+    --card2:     #e8e7e4;
+    --border:    #d8d7d4;
+    --border2:   #e4e3e0;
+    --text:      #1a1a18;
+    --text2:     #666660;
+    --text3:     #999994;
+    --text4:     #bbbbbb;
+    --now:       #e05a4a;
+    --half-line: #ececec;
+    --toggle-bg: #e0dedd;
+    --toggle-knob: #999;
+    --save-bg:   #2a3040;
+
+    /* Period anchor — light versions */
+    --wind-bg:    #f5ebe0; --wind-br:    #c8a070; --wind-text:   #6b4820;
+    --echo-bg:    #ddf0e0; --echo-br:    #68aa72; --echo-text:   #1e5828;
+    --fallow-bg:  #ece0f8; --fallow-br:  #9070c8; --fallow-text: #4a2880;
+
+    /* Task types — light versions */
+    --hb-bg:   #faeadb; --hb-br:   #c89060; --hb-text:  #7a4820;
+    --med-bg:  #e8f2dc; --med-br:  #80aa58; --med-text: #365820;
+    --low-bg:  #faeedd; --low-br:  #c88850; --low-text: #7a4618;
+  }
+
+  html { background: var(--bg); } body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 13px; transition: background 0.2s, color 0.2s; padding: 0; margin: 0; }
+
+  .app { display: flex; flex-direction: column; }
+
+  /* ── LEFT ── */
+  .left { width: 100%; border-right: none; border-bottom: 1px solid var(--border2); display: flex; flex-direction: column; background: var(--panel); transition: background 0.2s; }
+  .left-header { padding: 16px 16px 12px; border-bottom: 1px solid var(--border2); flex-shrink: 0; }
+  .left-eyebrow { font-size: 10px; letter-spacing: 0.12em; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
+
+  .studio-btn {
+    width: 100%; display: flex; align-items: center; gap: 8px;
+    padding: 10px 13px; background: #1a1f2a; border: 1px solid #2586b7;
+    border-radius: 8px; color: #6a92af; font-size: 12px; font-family: inherit;
+    cursor: pointer; text-align: left; transition: filter 0.15s;
+  }
+  html:not(.light) .studio-btn:hover { filter: brightness(1.15); }
+  html.light .studio-btn:hover { filter: brightness(0.95); }
+  html.light .studio-btn { background: #e8f0f8; border-color: #6aaad8; color: #2a6090; }
+  html.light .studio-btn svg path { stroke: #2a6090; }
+  html.light .activate-btn:hover:not(:disabled) { background: #e8f0f8; border-color: #6aaad8; color: #2a6090; }
+  html.light .activate-btn.active { background: #e8f0f8; border-color: #6aaad8; color: #2a6090; }
+  html.light .lib-toggle-row.active { background: #e8f0f8; border-color: #6aaad8; }
+  html.light .lib-toggle-row.active .lib-toggle-label { color: #2a6090; }
+  html.light .lib-toggle-row.active .lib-toggle-track { background: #6aaad8; }
+  html.light .lib-sprint-add:hover { background: #e8f0f8; border-color: #6aaad8; color: #2a6090; }
+  .studio-icon { width: 14px; height: 14px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+
+  .header-btns { display: flex; gap: 8px; }
+
+  .library-btn {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 10px 13px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text2); font-size: 12px; font-family: inherit;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .library-btn:hover { background: var(--card2); color: var(--text); border-color: var(--text3); }
+
+  /* Library panel */
+  .library-panel {
+    display: none; flex-direction: column; height: 100%;
+  }
+  .library-panel.open { display: flex; }
+  .library-panel-header {
+    padding: 14px 14px 10px; border-bottom: 1px solid var(--border2); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .library-panel-back {
+    background: none; border: none; color: var(--text3); cursor: pointer;
+    font-size: 12px; font-family: inherit; padding: 0; display: flex; align-items: center; gap: 6px;
+  }
+  .library-panel-back:hover { color: var(--text2); }
+  .library-panel-scroll { flex: 1; overflow-y: auto; padding: 14px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+  .lib-sprint-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 7px; cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .lib-sprint-item:hover { border-color: #2586b7; }
+  .lib-sprint-name { font-size: 12px; color: var(--text); font-weight: 500; }
+  .lib-sprint-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .lib-sprint-add {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 5px;
+    color: var(--text3); font-size: 11px; font-family: inherit;
+    padding: 4px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+  .lib-sprint-add:hover { background: #1a1f2a; border-color: #2586b7; color: #6a92af; }
+
+  /* Save to Library toggle */
+  .lib-toggle-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; height: 40px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--card);
+    cursor: pointer; flex-shrink: 0; white-space: nowrap;
+    transition: border-color 0.15s, background 0.15s; user-select: none;
+  }
+  .lib-toggle-row:hover { border-color: #2586b7; }
+  .lib-toggle-row.active { border-color: #2586b7; background: #1a1f2a; }
+  .lib-toggle-track {
+    width: 30px; height: 17px; border-radius: 9px;
+    background: var(--border); position: relative; flex-shrink: 0; transition: background 0.2s;
+  }
+  .lib-toggle-row.active .lib-toggle-track { background: #2586b7; }
+  .lib-toggle-knob {
+    position: absolute; top: 2px; left: 2px; width: 11px; height: 11px;
+    border-radius: 50%; background: var(--text3); transition: transform 0.2s, background 0.2s;
+  }
+  .lib-toggle-row.active .lib-toggle-knob { transform: translateX(13px); background: #fff; }
+  .lib-toggle-label { font-size: 12px; color: var(--text3); flex: 1; transition: color 0.15s; }
+  .lib-toggle-row.active .lib-toggle-label { color: #6a92af; }
+
+  .sprints-scroll { padding: 14px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .section-eyebrow { font-size: 10px; letter-spacing: 0.1em; color: var(--text4); text-transform: uppercase; margin-bottom: 12px; padding-left: 2px; }
+
+  .sprint-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; margin-bottom: 10px; }
+  .sprint-card-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 6px; margin-bottom: 11px; }
+  .sprint-card-name { font-size: 10px; letter-spacing: 0.08em; color: var(--text3); text-transform: uppercase; font-weight: 500; }
+  .sprint-menu-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+  .sprint-menu-btn:hover { background: var(--card2); color: var(--text2); }
+
+  /* Task pills — all type variants */
+  .task-pill { display: flex; align-items: center; justify-content: space-between; padding: 7px 11px; border-radius: 6px; margin-bottom: 4px; font-size: 12px; border: 1px solid transparent; }
+  .task-pill-dur { font-size: 11px; opacity: 0.55; }
+
+  /* Habit Blocker */
+  .pill-hb   { background: var(--hb-bg);  color: var(--hb-text);  border-color: var(--hb-br);  }
+  /* Anchor — period-dependent (set via inline style) */
+  .pill-anchor-wind   { background: var(--wind-bg);   color: var(--wind-text);   border-color: var(--wind-br);   }
+  .pill-anchor-echo   { background: var(--echo-bg);   color: var(--echo-text);   border-color: var(--echo-br);   }
+  .pill-anchor-fallow { background: var(--fallow-bg); color: var(--fallow-text); border-color: var(--fallow-br); }
+  /* Medium */
+  .pill-med  { background: var(--med-bg);  color: var(--med-text);  border-color: var(--med-br);  }
+  /* Low */
+  .pill-low  { background: var(--low-bg);  color: var(--low-text);  border-color: var(--low-br);  }
+  /* Break */
+  .pill-brk  { background: transparent; color: var(--text3); border: 1px dashed var(--border); }
+
+  .activate-btn { width: 100%; margin-top: 10px; padding: 9px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-family: inherit; font-size: 12px; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .activate-btn:hover:not(:disabled) { background: #1a1f2a; border-color: #2586b7; color: #6a92af; }
+  .activate-btn.active { background: #1a1f2a; border-color: #2586b7; color: #6a92af; cursor: default; }
+  .activate-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── LEFT FOOTER ── */
+  .left-footer { padding: 12px 16px; border-top: 1px solid var(--border2); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
+  .left-footer-label { font-size: 11px; color: var(--text3); }
+  .theme-toggle { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+  .toggle-track { width: 32px; height: 18px; border-radius: 9px; background: var(--toggle-bg); border: 1px solid var(--border); position: relative; transition: background 0.2s; flex-shrink: 0; }
+  html.light .toggle-track { background: #4a7c59; border-color: #4a7c59; }
+  .toggle-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--toggle-knob); transition: transform 0.2s, background 0.2s; }
+  html.light .toggle-knob { transform: translateX(14px); background: #fff; }
+
+  /* ── RIGHT CALENDAR ── */
+  .right { display: flex; flex-direction: column; background: var(--bg); }
+  .cal-header { display: flex; border-bottom: 1px solid var(--border2); flex-shrink: 0; }
+  .cal-gutter-head { width: 52px; flex-shrink: 0; }
+  .cal-day-head { flex: 1; padding: 12px 15px; border-left: 1px solid var(--border2); }
+  .cal-day-label { font-size: 10px; letter-spacing: 0.08em; color: var(--text3); text-transform: uppercase; margin-bottom: 3px; }
+  .cal-day-num { font-size: 22px; font-weight: 500; color: var(--text); line-height: 1; }
+  .cal-day-num.today { color: #5a9fff; }
+  .cal-body { display: flex; height: 1536px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; overflow-x: hidden; }
+  .cal-gutter { width: 52px; flex-shrink: 0; position: relative; height: 1536px; }
+  .cal-columns { flex: 1; display: flex; }
+  .cal-col { flex: 1; border-left: 1px solid var(--border2); position: relative; height: 1536px; }
+  .hour-label { position: absolute; right: 8px; font-size: 10px; color: var(--text3); transform: translateY(-50%); white-space: nowrap; user-select: none; }
+  .hour-line  { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border2); pointer-events: none; }
+  .half-line  { position: absolute; left: 0; right: 0; border-top: 1px solid var(--half-line); pointer-events: none; }
+  .section-line { position: absolute; left: 0; right: 0; height: 2px; pointer-events: none; z-index: 2; }
+  .section-line.wind   { background: var(--div-wind);   opacity: 0.6; }
+  .section-line.echo   { background: var(--div-echo);   opacity: 0.65; }
+  .section-line.fallow { background: var(--div-fallow); opacity: 0.8; }
+  .now-line { position: absolute; left: 0; right: 0; z-index: 4; pointer-events: none; }
+  .now-line::before { content: ''; position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--now); }
+  .now-line::after  { content: ''; position: absolute; left: 0; right: 0; top: -1px; height: 2px; background: var(--now); }
+
+  /* Event blocks on calendar */
+  .event-block { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 4px 8px; font-size: 11px; overflow: hidden; cursor: default; z-index: 3; border: 1px solid transparent; user-select: none; margin-bottom: 0; }
+  .event-block:active { cursor: grabbing; }
+  .event-block.hb     { background: var(--hb-bg);     color: var(--hb-text);     border-color: var(--hb-br);     }
+  .event-block.anchor-wind   { background: var(--wind-bg);   color: var(--wind-text);   border-color: var(--wind-br);   }
+  .event-block.anchor-echo   { background: var(--echo-bg);   color: var(--echo-text);   border-color: var(--echo-br);   }
+  .event-block.anchor-fallow { background: var(--fallow-bg); color: var(--fallow-text); border-color: var(--fallow-br); }
+  .event-block.med    { background: var(--med-bg);    color: var(--med-text);    border-color: var(--med-br);    }
+  .event-block.low    { background: var(--low-bg);    color: var(--low-text);    border-color: var(--low-br);    }
+  .event-block.brk    { background: var(--card); color: var(--text3); border: 1px dashed var(--border); }
+  .event-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+
+  /* ── MODAL ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100; align-items: center; justify-content: center; padding: 24px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 860px; max-height: 90vh; display: flex; overflow: hidden; }
+
+  .modal-left { flex: 1; padding: 26px 23px; border-right: 1px solid var(--border2); display: flex; flex-direction: column; gap: 12px; min-width: 0; overflow: hidden; }
+  .modal-title-input { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-size: 20px; font-weight: 500; font-family: inherit; padding: 0 2px 11px; outline: none; }
+  .modal-title-input::placeholder { color: var(--text4); }
+  .modal-title-input:focus { border-bottom-color: #2586b7; }
+
+  .modal-tasks { display: flex; flex-direction: column; gap: 7px; overflow-y: auto; max-height: calc(90vh - 230px); scrollbar-width: thin; scrollbar-color: var(--border) transparent; flex-shrink: 1; }
+
+  .modal-task-row { background: var(--card); border: 1px solid var(--border); border-radius: 9px; padding: 11px 13px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+  .modal-task-top { display: flex; align-items: center; gap: 7px; }
+
+  .mt-name { flex: 1; min-width: 0; height: 32px; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; font-family: inherit; padding: 0 11px; outline: none; }
+  .mt-name::placeholder { color: var(--text3); }
+  .mt-name:focus { border-color: #2586b7; }
+
+  .mt-dur { width: 50px; height: 32px; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; font-family: inherit; padding: 0 6px; text-align: center; outline: none; flex-shrink: 0; }
+  .mt-dur:focus { border-color: #2586b7; }
+  .mt-min { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+
+  .mt-ibtn { width: 28px; height: 28px; background: var(--card2); border: 1px solid var(--border); border-radius: 5px; color: var(--text3); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 13px; }
+  .mt-ibtn:hover { color: var(--text); background: #2a2a2a; }
+  .mt-ibtn.del:hover { background: #2a1414; color: #e05a4a; border-color: #4a2020; }
+
+  /* Period row */
+  .mt-periods { display: flex; gap: 5px; }
+  .mt-period { flex: 1; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text3); font-size: 11px; font-family: inherit; cursor: pointer; transition: all 0.1s; }
+  .mt-period:hover { color: var(--text2); }
+  .mt-period.p-wind   { background: var(--wind-bg)   !important; color: var(--wind-text)   !important; border-color: var(--wind-br)   !important; }
+  .mt-period.p-echo   { background: var(--echo-bg)   !important; color: var(--echo-text)   !important; border-color: var(--echo-br)   !important; }
+  .mt-period.p-fallow { background: var(--fallow-bg) !important; color: var(--fallow-text) !important; border-color: var(--fallow-br) !important; }
+
+  /* Type row */
+  .mt-types { display: flex; gap: 5px; }
+  .mt-type { flex: 1; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text3); font-size: 11px; font-family: inherit; cursor: pointer; transition: all 0.1s; }
+  .mt-type:hover { color: var(--text2); }
+  .mt-type.t-hb  { background: var(--hb-bg)  !important; color: var(--hb-text)  !important; border-color: var(--hb-br)  !important; }
+  .mt-type.t-anchor-wind   { background: var(--wind-bg)   !important; color: var(--wind-text)   !important; border-color: var(--wind-br)   !important; }
+  .mt-type.t-anchor-echo   { background: var(--echo-bg)   !important; color: var(--echo-text)   !important; border-color: var(--echo-br)   !important; }
+  .mt-type.t-anchor-fallow { background: var(--fallow-bg) !important; color: var(--fallow-text) !important; border-color: var(--fallow-br) !important; }
+  .mt-type.t-med { background: var(--med-bg) !important; color: var(--med-text) !important; border-color: var(--med-br) !important; }
+  .mt-type.t-low { background: var(--low-bg) !important; color: var(--low-text) !important; border-color: var(--low-br) !important; }
+  .mt-type.t-brk { border: 1px dashed var(--border) !important; color: var(--text3) !important; background: transparent !important; }
+
+  .modal-add-btn { width: 100%; height: 38px; border-radius: 8px; border: 1px dashed var(--border); background: transparent; color: var(--text3); font-size: 12px; font-family: inherit; cursor: pointer; flex-shrink: 0; }
+  .modal-add-btn:hover { background: var(--card2); }
+
+  .modal-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+  .modal-save { flex: 1; height: 40px; border-radius: 8px; border: none; background: var(--save-bg); color: #fff; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; }
+  .modal-save:hover { filter: brightness(1.2); }
+  .modal-cancel { height: 40px; padding: 0 19px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 13px; font-family: inherit; cursor: pointer; }
+  .modal-cancel:hover { background: var(--card); }
+
+  .modal-right { width: 220px; flex-shrink: 0; padding: 22px 16px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .lib-label { font-size: 10px; letter-spacing: 0.1em; color: var(--text4); text-transform: uppercase; margin-bottom: 12px; font-weight: 500; }
+  .lib-item { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: 7px; cursor: pointer; margin-bottom: 2px; }
+  .lib-item:hover { background: var(--card); }
+  .lib-dot { width: 7px; height: 7px; border-radius: 3.5px; flex-shrink: 0; }
+  .lib-name { flex: 1; font-size: 12px; color: var(--text2); }
+  .lib-dur  { font-size: 11px; color: var(--text3); }
+
+  /* ── MISSION BRIEFING ── */
+  .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
+  .confirm-overlay.open { display: flex; }
+
+  .mission-card {
+    background: #101010;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    padding: 25px;
+    width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .mission-num {
+    font-family: 'Nokora', 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .mission-title {
+    font-family: 'Nokora', 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    color: #e8f0f4;
+    line-height: 1.2;
+  }
+
+  .mission-desc {
+    font-family: 'Nokora', 'Inter', sans-serif;
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #a9a9a9;
+    min-height: 60px;
+  }
+
+  .mission-desc-loading { color: #a9a9a9; font-style: italic; }
+
+  .mission-meta { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 8px; }
+
+  .mission-meta-row { display: flex; align-items: center; justify-content: space-between; }
+
+  .mission-meta-label {
+    font-family: 'Nokora', 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .mission-difficulty {
+    font-family: 'Nokora', 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .mission-bar-track { height: 4px; background: #212528; border-radius: 2px; overflow: hidden; }
+  .mission-bar-fill  { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+  .mission-primetime-label {
+    font-family: 'Nokora', 'Inter', sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+  }
+
+  .mission-primetime-val {
+    font-family: 'Nokora', 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: #e8f0f4;
+  }
+
+  .mission-launch {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Nokora', 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: filter 0.15s;
+  }
+  .mission-launch:hover { filter: brightness(1.1); }
+
+  /* Period themes */
+  .mission-card.period-wind .mission-num        { color: #af9f82; }
+  .mission-card.period-wind .mission-meta-label { color: #d4a574; }
+  .mission-card.period-wind .mission-difficulty { color: #c89c6e; }
+  .mission-card.period-wind .mission-bar-fill   { background: #ae8155; }
+  .mission-card.period-wind .mission-primetime-label { color: #d4a574; }
+  .mission-card.period-wind .mission-launch     { background: #af9f82; color: #685a49; }
+
+  .mission-card.period-echo .mission-num        { color: #6aad7e; }
+  .mission-card.period-echo .mission-meta-label { color: #78c96f; }
+  .mission-card.period-echo .mission-difficulty { color: #6aad7e; }
+  .mission-card.period-echo .mission-bar-fill   { background: #7fd474; }
+  .mission-card.period-echo .mission-primetime-label { color: #78c96f; }
+  .mission-card.period-echo .mission-launch     { background: #122a20; color: #6aad7e; }
+
+  .mission-card.period-fallow .mission-num        { color: #735fae; }
+  .mission-card.period-fallow .mission-meta-label { color: #b4a2d3; }
+  .mission-card.period-fallow .mission-difficulty { color: #ab99cb; }
+  .mission-card.period-fallow .mission-bar-fill   { background: #8674d4; }
+  .mission-card.period-fallow .mission-primetime-label { color: #b4a2d3; }
+  .mission-card.period-fallow .mission-launch     { background: #2a195b; color: #ab9acc; }
+
+  /* ── CTX MENU ── */
+  .ctx-menu { display: none; position: fixed; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px; z-index: 400; min-width: 130px; }
+  .ctx-menu.open { display: block; }
+  .ctx-item { padding: 7px 12px; font-size: 12px; color: var(--text2); cursor: pointer; border-radius: 5px; }
+  .ctx-item:hover { background: var(--card2); color: var(--text); }
+  .ctx-item.danger:hover { background: #2a1414; color: #e05a4a; }
+
+  /* ── TOAST ── */
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a2a1f; border: 1px solid #2a4a33; color: #6aaf7a; font-size: 12px; padding: 8px 18px; border-radius: 20px; z-index: 300; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+
+  .empty-state { padding: 32px 16px; text-align: center; color: var(--text3); font-size: 12px; line-height: 1.7; }
+
+  .collapse-btn {
+    background: none; border: none; color: var(--text3); cursor: pointer;
+    font-size: 10px; padding: 2px 6px; border-radius: 4px; line-height: 1;
+    transition: color 0.15s;
+  }
+  .collapse-btn:hover { color: var(--text2); }
+
+  #left-collapsible { transition: max-height 0.3s ease, opacity 0.3s ease; overflow: hidden; }
+  #left-collapsible.collapsed { max-height: 0 !important; opacity: 0; pointer-events: none; }
+
+  @media (min-width: 700px) {
+    .collapse-btn { display: none; }
+    #left-collapsible { max-height: none !important; opacity: 1 !important; pointer-events: all !important; overflow: visible !important; }
+    .app { flex-direction: row; height: 100vh; overflow: hidden; }
+    .left { width: 300px; flex-shrink: 0; border-right: 1px solid var(--border2); border-bottom: none; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+    #left-collapsible { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .sprints-scroll { flex: 1; overflow-y: auto; }
+    .library-panel { flex: 1; overflow: hidden; }
+    .right { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+    #cal-scroll-wrap { flex: 1; overflow-y: auto; }
+    html, body { overflow: hidden; height: 100%; }
+  }
+  .status-badge { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+  .status-sprinted { background: #1a3a1a; color: #6aaf7a; border: 1px solid #2a5a2a; }
+  .status-complete { background: #1a2a3a; color: #6a9abf; border: 1px solid #2a4a6a; }
+  .status-fell-off { background: #3a1a1a; color: #bf6a6a; border: 1px solid #5a2a2a; }
+
+  /* Task pill done state */
+  .task-pill.done { opacity: 0.45; }
+  .task-pill.done span:first-child { text-decoration: line-through; }
+
+  /* Completed section */
+  .completed-section { margin-top: 18px; }
+  .completed-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 13px; margin-bottom: 8px; opacity: 0.75; }
+  .completed-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .completed-card-name { font-size: 11px; color: var(--text2); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="left">
+    <div class="left-header">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="left-eyebrow" style="margin-bottom:0;">Sprint</div>
+        <button class="collapse-btn" id="collapse-btn" aria-label="Collapse sprint panel">▲</button>
+      </div>
+      <div class="header-btns" id="left-body-btns">
+        <button class="studio-btn" id="open-studio" style="flex:1;">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+            <path d="M8.5 1.5L3 8H7L5.5 12.5L11 6H7L8.5 1.5Z" stroke="#6a92af" stroke-width="1.2" stroke-linejoin="round" fill="none"/>
+          </svg>
+          Sprint Studio
+        </button>
+        <button class="library-btn" id="open-library">Sprint Library</button>
+      </div>
+    </div>
+
+    <!-- COLLAPSIBLE BODY -->
+    <div id="left-collapsible">
+      <!-- TODAY'S SPRINTS VIEW -->
+      <div class="sprints-scroll" id="sprints-view">
+        <div class="section-eyebrow">Today's sprints</div>
+        <div id="sprints-list"></div>
+        <div class="completed-section" id="completed-section" style="display:none;">
+          <div class="section-eyebrow">Completed</div>
+          <div id="completed-list"></div>
+        </div>
+      </div>
+
+      <!-- LIBRARY VIEW -->
+      <div class="library-panel" id="library-view">
+        <div class="library-panel-header">
+          <button class="library-panel-back" id="close-library">← Back</button>
+        </div>
+        <div class="library-panel-scroll" id="library-sprint-list"></div>
+      </div>
+
+      <div class="left-footer">
+        <span class="left-footer-label" id="theme-label">Dark mode</span>
+        <div class="theme-toggle" id="theme-toggle">
+          <div class="toggle-track"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="cal-header">
+      <div class="cal-gutter-head"></div>
+      <div class="cal-day-head">
+        <div class="cal-day-label" id="lbl-today-day"></div>
+        <div class="cal-day-num today" id="lbl-today-num"></div>
+      </div>
+      <div class="cal-day-head">
+        <div class="cal-day-label" id="lbl-tmrw-day"></div>
+        <div class="cal-day-num" id="lbl-tmrw-num"></div>
+      </div>
+    </div>
+    <div style="overflow-y:auto;-webkit-overflow-scrolling:touch;" id="cal-scroll-wrap">
+    <div class="cal-body" id="cal-body">
+      <div class="cal-gutter" id="cal-gutter"></div>
+      <div class="cal-columns">
+        <div class="cal-col" id="col-today"></div>
+        <div class="cal-col" id="col-tmrw"></div>
+      </div>
+    </div>
+    </div>
+  </div>
+</div>
+
+<!-- SPRINT STUDIO -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-left">
+      <input class="modal-title-input" id="modal-sprint-name" type="text" placeholder="Name this sprint" />
+      <div class="modal-tasks" id="modal-tasks"></div>
+      <button class="modal-add-btn" id="modal-add-task">+ Add task</button>
+      <div class="modal-actions">
+        <label class="lib-toggle-row" id="modal-save-to-lib-label">
+          <div class="lib-toggle-track">
+            <div class="lib-toggle-knob"></div>
+          </div>
+          <span class="lib-toggle-label">Save to Library</span>
+          <input type="checkbox" id="modal-save-to-lib" style="display:none;" />
+        </label>
+        <button class="modal-save" id="modal-save">Save sprint</button>
+        <button class="modal-cancel" id="modal-cancel">Cancel</button>
+      </div>
+    </div>
+    <div class="modal-right">
+      <div class="lib-label">From your library</div>
+      <div id="lib-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MISSION BRIEFING -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="mission-card" id="mission-card">
+    <div class="mission-num" id="mission-num">MISSION 01</div>
+    <div class="mission-title" id="confirm-title">THE DOLORES SPRINT</div>
+    <div class="mission-desc" id="mission-desc">
+      <span class="mission-desc-loading">Preparing mission briefing...</span>
+    </div>
+    <div class="mission-meta">
+      <div class="mission-meta-row">
+        <span class="mission-meta-label">DIFFICULTY</span>
+        <span class="mission-difficulty" id="mission-difficulty">MODERATE</span>
+      </div>
+      <div class="mission-bar-track"><div class="mission-bar-fill" id="mission-bar"></div></div>
+      <div class="mission-meta-row" style="margin-top:4px;">
+        <span class="mission-primetime-label">Prime time</span>
+        <span class="mission-primetime-val" id="mission-primetime">Wind to The Morning</span>
+      </div>
+    </div>
+    <button class="mission-launch" id="confirm-ok">LAUNCH MISSION</button>
+  </div>
+</div>
+
+<!-- CTX MENU -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" id="ctx-edit">Edit sprint</div>
+  <div class="ctx-item danger" id="ctx-delete">Delete sprint</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const HOUR_PX = 64;
+  const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const SECTIONS = [
+    { hour: 4,  cls: 'wind'   },
+    { hour: 11, cls: 'echo'   },
+    { hour: 19, cls: 'fallow' },
+  ];
+
+  const PERIODS = [
+    { key: 'wind',   label: 'Wind to the Morning' },
+    { key: 'echo',   label: "Echofall" },
+    { key: 'fallow', label: 'Fallow' },
+  ];
+
+  const TYPES = [
+    { key: 'hb',     label: 'Habit Blocker' },
+    { key: 'anchor', label: 'Anchor' },
+    { key: 'med',    label: 'Medium' },
+    { key: 'low',    label: 'Low' },
+    { key: 'brk',    label: 'Break' },
+  ];
+
+  // Dot color for library items based on period+type
+  function dotColor(period, type) {
+    if (type === 'hb')     return '#d4a574';
+    if (type === 'anchor') {
+      if (period === 'wind')   return '#af9f82';
+      if (period === 'echo')   return '#7fd474';
+      if (period === 'fallow') return '#b4a2d3';
+    }
+    if (type === 'med') return '#9aaa7a';
+    if (type === 'low') return '#ae8155';
+    return '#555550'; // brk
+  }
+
+  // CSS class for a pill/event given period+type
+  function pillClass(period, type) {
+    if (type === 'hb')     return 'pill-hb';
+    if (type === 'anchor') return 'pill-anchor-' + period;
+    if (type === 'med')    return 'pill-med';
+    if (type === 'low')    return 'pill-low';
+    return 'pill-brk';
+  }
+
+  function eventClass(period, type) {
+    if (type === 'hb')     return 'hb';
+    if (type === 'anchor') return 'anchor-' + period;
+    if (type === 'med')    return 'med';
+    if (type === 'low')    return 'low';
+    return 'brk';
+  }
+
+  const DEFAULT_LIBRARY = [
+    { name: 'OS Study Session',    dur: 30, period: 'wind',   type: 'anchor' },
+    { name: 'Deep Work Block',     dur: 50, period: 'wind',   type: 'anchor' },
+    { name: 'Wind to the Morning', dur: 45, period: 'wind',   type: 'hb'     },
+    { name: 'Read',                dur: 25, period: 'echo',   type: 'med'    },
+    { name: 'Cleaning',            dur: 20, period: 'echo',   type: 'med'    },
+    { name: 'Errands',             dur: 30, period: 'echo',   type: 'low'    },
+    { name: 'Workout',             dur: 30, period: 'echo',   type: 'med'    },
+    { name: 'Break',               dur: 10, period: 'wind',   type: 'brk'    },
+  ];
+
+  const DEFAULT_SPRINTS = [
+    {
+      id: 's1', name: 'The Dolores Sprint',
+      tasks: [
+        { id: 't1', name: 'Wind to the Morning', dur: 45, period: 'wind',   type: 'hb'     },
+        { id: 't2', name: 'OS Study Session',    dur: 30, period: 'wind',   type: 'anchor' },
+        { id: 't3', name: 'Break',               dur: 10, period: 'wind',   type: 'brk'    },
+        { id: 't4', name: 'Cleaning',            dur: 20, period: 'echo',   type: 'med'    },
+        { id: 't5', name: 'Coverletter Video',   dur: 20, period: 'wind',   type: 'low'    },
+      ]
+    },
+    {
+      id: 's2', name: 'The Admin Sprint',
+      tasks: [
+        { id: 't6', name: 'Reading Mails', dur: 45, period: 'echo',   type: 'anchor' },
+        { id: 't7', name: 'Cleaning',      dur: 30, period: 'echo',   type: 'med'    },
+        { id: 't8', name: 'Break',         dur: 10, period: 'wind',   type: 'brk'    },
+        { id: 't9', name: 'Workout',       dur: 45, period: 'echo',   type: 'anchor' },
+        { id: 't10',name: 'OS Flashcards', dur: 20, period: 'wind',   type: 'low'    },
+      ]
+    },
+    {
+      id: 's3', name: 'The Ender Sprint',
+      tasks: [
+        { id: 't11', name: 'Fallow',                dur: 45, period: 'fallow', type: 'hb'     },
+        { id: 't12', name: 'Check Food Availability',dur: 20, period: 'fallow', type: 'anchor' },
+      ]
+    },
+  ];
+
+  /* ── STATE ── */
+  let sprints          = loadLS('sprint_sprints',    DEFAULT_SPRINTS);
+  let library          = loadLS('sprint_library',    DEFAULT_LIBRARY);
+  let sprintLibrary    = loadLS('sprint_lib_presets',[]);             // saved sprint presets
+  let events           = loadLS('sprint_events',     []);
+  let uid              = loadLS('sprint_uid',        200);
+  let activeSprints    = new Set(loadLS('sprint_active',    []));
+  let doneTasks        = new Set(loadLS('sprint_done_tasks',[]));  // set of event ids marked done
+  let completedSprints = loadLS('sprint_completed',  []);          // [{sprintId, name, status, tasks}]
+  let isLight          = loadLS('sprint_theme',      false);
+  let pendingSprintId = null;
+  let ctxTargetId     = null;
+  let modalTasks      = [];
+  let modalUid        = 0;
+  let editingSprintId = null;
+
+  function loadLS(k, d) { try { const v = localStorage.getItem(k); return v !== null ? JSON.parse(v) : d; } catch { return d; } }
+  function saveLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  function save() {
+    saveLS('sprint_sprints',    sprints);
+    saveLS('sprint_events',     events);
+    saveLS('sprint_uid',        uid);
+    saveLS('sprint_active',     [...activeSprints]);
+    saveLS('sprint_done_tasks', [...doneTasks]);
+    saveLS('sprint_completed',  completedSprints);
+    saveLS('sprint_lib_presets',sprintLibrary);
+    saveLS('sprint_date',       todayStr());
+  }
+
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function dailyReset() {
+    const lastDate = loadLS('sprint_date', null);
+    const today    = todayStr();
+    if (lastDate === today) return; // same day, no reset needed
+
+    // Auto-complete any active sprints that weren't finished
+    [...activeSprints].forEach(sprintId => {
+      const sprint = sprints.find(s => s.id === sprintId);
+      if (!sprint) return;
+      const status = calcStatus(sprint);
+      completedSprints.push({ sprintId, name: sprint.name, status, tasks: sprint.tasks });
+    });
+
+    // Clear daily state
+    activeSprints    = new Set();
+    events           = [];
+    doneTasks        = new Set();
+    completedSprints = [];
+
+    save();
+  }
+  function genId() { return 'id_' + (uid++); }
+
+  function applyTheme() {
+    document.documentElement.classList.toggle('light', isLight);
+    document.getElementById('theme-label').textContent = isLight ? 'Light mode' : 'Dark mode';
+  }
+  document.getElementById('theme-toggle').addEventListener('click', () => { isLight = !isLight; saveLS('sprint_theme', isLight); applyTheme(); });
+  applyTheme();
+
+  /* ── TOAST ── */
+  const toastEl = document.getElementById('toast');
+  let toastTimer;
+  function toast(msg) { toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200); }
+
+  /* ── HELPERS ── */
+  function minutesLeft() { const n = new Date(); return 24*60 - (n.getHours()*60 + n.getMinutes()); }
+  function sprintMins(s) { return s.tasks.reduce((a, t) => a + t.dur, 0); }
+
+  /* ── CALENDAR ── */
+  function setupCalendar() {
+    const now = new Date(), tmrw = new Date(now);
+    tmrw.setDate(tmrw.getDate() + 1);
+    document.getElementById('lbl-today-day').textContent = DAYS[now.getDay()];
+    document.getElementById('lbl-today-num').textContent = now.getDate();
+    document.getElementById('lbl-tmrw-day').textContent  = DAYS[tmrw.getDay()];
+    document.getElementById('lbl-tmrw-num').textContent  = tmrw.getDate();
+
+    const gutter = document.getElementById('cal-gutter');
+    const colT   = document.getElementById('col-today');
+    const colN   = document.getElementById('col-tmrw');
+    const total  = 24 * HOUR_PX;
+    // Heights are set via CSS (1536px = 24 * 64px)
+
+    for (let h = 0; h <= 24; h++) {
+      const y = h * HOUR_PX;
+      if (h > 0 && h < 24) {
+        const lbl = document.createElement('div');
+        lbl.className = 'hour-label'; lbl.style.top = y + 'px';
+        lbl.textContent = h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h-12) + ' PM';
+        gutter.appendChild(lbl);
+      }
+      [colT, colN].forEach(col => {
+        const line = document.createElement('div'); line.className = 'hour-line'; line.style.top = y + 'px'; col.appendChild(line);
+        if (h < 24) { const half = document.createElement('div'); half.className = 'half-line'; half.style.top = (y + HOUR_PX/2) + 'px'; col.appendChild(half); }
+      });
+    }
+
+    SECTIONS.forEach(s => {
+      [colT, colN].forEach(col => {
+        const line = document.createElement('div'); line.className = 'section-line ' + s.cls; line.style.top = (s.hour * HOUR_PX) + 'px'; col.appendChild(line);
+      });
+    });
+
+    const nl = document.createElement('div'); nl.className = 'now-line'; nl.id = 'now-line'; colT.appendChild(nl);
+    updateNow(); setInterval(updateNow, 60000);
+    const h2 = now.getHours() + now.getMinutes()/60;
+    setTimeout(() => { const wrap = document.getElementById('cal-scroll-wrap'); if (wrap) wrap.scrollTop = Math.max(0, h2*HOUR_PX - 140); }, 50);
+  }
+
+  function updateNow() { const nl = document.getElementById('now-line'); if (!nl) return; const n = new Date(); nl.style.top = ((n.getHours() + n.getMinutes()/60) * HOUR_PX) + 'px'; }
+
+  /* ── RENDER SPRINTS ── */
+  function renderSprints() {
+    const list = document.getElementById('sprints-list');
+    const ml   = minutesLeft();
+    list.innerHTML = '';
+    if (!sprints.length) { list.innerHTML = '<div class="empty-state">No sprints yet.<br>Hit Sprint Studio to create one.</div>'; return; }
+
+    sprints.forEach(sprint => {
+      const card = document.createElement('div'); card.className = 'sprint-card';
+      const head = document.createElement('div'); head.className = 'sprint-card-head';
+      const nm = document.createElement('div'); nm.className = 'sprint-card-name'; nm.textContent = sprint.name;
+      const mb = document.createElement('button'); mb.className = 'sprint-menu-btn'; mb.textContent = '···';
+      mb.addEventListener('click', e => openCtx(e, sprint.id));
+      head.append(nm, mb); card.appendChild(head);
+
+      const isActiveSprint = activeSprints.has(sprint.id);
+      sprint.tasks.forEach((t, idx) => {
+        const pill = document.createElement('div');
+        const sprintEvs = events.filter(ev => ev.sprintId === sprint.id);
+        const matchEv   = sprintEvs[idx];
+        const isDone    = matchEv && doneTasks.has(matchEv.id);
+
+        pill.className = 'task-pill ' + pillClass(t.period, t.type) + (isDone ? ' done' : '');
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = t.name;
+
+        const right = document.createElement('span');
+        right.style.cssText = 'display:flex;align-items:center;gap:4px;';
+
+        const dur = document.createElement('span');
+        dur.className = 'task-pill-dur';
+        dur.textContent = t.dur + 'm';
+        right.appendChild(dur);
+
+        if (isActiveSprint) {
+          // Click pill to toggle done
+          pill.style.cursor = 'pointer';
+          pill.addEventListener('click', () => {
+            if (!matchEv) return;
+            if (doneTasks.has(matchEv.id)) doneTasks.delete(matchEv.id);
+            else doneTasks.add(matchEv.id);
+            save(); renderSprints();
+          });
+
+          if (idx > 0) {
+            const up = document.createElement('button');
+            up.textContent = '↑';
+            up.style.cssText = 'background:none;border:none;color:inherit;opacity:0.5;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;';
+            up.addEventListener('click', e => {
+              e.stopPropagation();
+              const evs = events.filter(ev => ev.sprintId === sprint.id);
+              const globalIdxA = events.findIndex(ev => ev.id === evs[idx].id);
+              const globalIdxB = events.findIndex(ev => ev.id === evs[idx - 1].id);
+              if (globalIdxA > -1 && globalIdxB > -1) {
+                [events[globalIdxA], events[globalIdxB]] = [events[globalIdxB], events[globalIdxA]];
+                repackSprintEvents(sprint.id);
+                save(); renderSprints(); renderEvents();
+              }
+            });
+            right.appendChild(up);
+          }
+          if (idx < sprint.tasks.length - 1) {
+            const dn = document.createElement('button');
+            dn.textContent = '↓';
+            dn.style.cssText = 'background:none;border:none;color:inherit;opacity:0.5;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;';
+            dn.addEventListener('click', e => {
+              e.stopPropagation();
+              const evs = events.filter(ev => ev.sprintId === sprint.id);
+              const globalIdxA = events.findIndex(ev => ev.id === evs[idx].id);
+              const globalIdxB = events.findIndex(ev => ev.id === evs[idx + 1].id);
+              if (globalIdxA > -1 && globalIdxB > -1) {
+                [events[globalIdxA], events[globalIdxB]] = [events[globalIdxB], events[globalIdxA]];
+                repackSprintEvents(sprint.id);
+                save(); renderSprints(); renderEvents();
+              }
+            });
+            right.appendChild(dn);
+          }
+        }
+
+        pill.appendChild(nameSpan);
+        pill.appendChild(right);
+        card.appendChild(pill);
+      });
+
+      const isActive = activeSprints.has(sprint.id);
+      const noTime   = !isActive && sprintMins(sprint) > ml;
+      const btn = document.createElement('button');
+      btn.className = 'activate-btn' + (isActive ? ' active' : '');
+      btn.disabled  = isActive || noTime;
+      btn.textContent = isActive ? 'Active' : noTime ? 'Not enough time (' + sprintMins(sprint) + 'm)' : 'Activate sprint';
+
+      if (!isActive && !noTime) {
+        btn.addEventListener('click', () => {
+          openMissionBriefing(sprint);
+        });
+      }
+      card.appendChild(btn);
+      list.appendChild(card);
+    });
+  }
+
+  /* ── COMPLETED SPRINTS ── */
+  function calcStatus(sprint) {
+    const sprintEvs   = events.filter(ev => ev.sprintId === sprint.id);
+    const anchorEvs   = sprintEvs.filter(ev => ev.type === 'anchor' || ev.type === 'hb');
+    const allDone     = sprintEvs.every(ev => doneTasks.has(ev.id));
+    const anchorsDone = anchorEvs.length === 0 || anchorEvs.every(ev => doneTasks.has(ev.id));
+    if (allDone)     return 'sprinted';
+    if (anchorsDone) return 'complete';
+    return 'fell-off';
+  }
+
+  function statusLabel(s) {
+    if (s === 'sprinted') return 'Sprinted';
+    if (s === 'complete') return 'Complete';
+    return 'Fell Off';
+  }
+
+  function statusClass(s) {
+    if (s === 'sprinted') return 'status-sprinted';
+    if (s === 'complete') return 'status-complete';
+    return 'status-fell-off';
+  }
+
+  function checkSprintCompletion() {
+    const now  = new Date();
+    const nowH = now.getHours() + now.getMinutes() / 60;
+    [...activeSprints].forEach(sprintId => {
+      const sprintEvs = events.filter(ev => ev.sprintId === sprintId);
+      if (!sprintEvs.length) return;
+      const endH = Math.max(...sprintEvs.map(ev => ev.startH + ev.dur / 60));
+      if (nowH >= endH) {
+        const sprint = sprints.find(s => s.id === sprintId);
+        if (!sprint) return;
+        const status = calcStatus(sprint);
+        completedSprints.push({ sprintId, name: sprint.name, status, tasks: sprint.tasks });
+        activeSprints.delete(sprintId);
+        save(); renderSprints(); renderCompleted();
+        toast('"' + sprint.name + '" — ' + statusLabel(status));
+      }
+    });
+  }
+
+  function renderCompleted() {
+    const section = document.getElementById('completed-section');
+    const list    = document.getElementById('completed-list');
+    list.innerHTML = '';
+    if (!completedSprints.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    completedSprints.forEach(cs => {
+      const card = document.createElement('div');
+      card.className = 'completed-card';
+      const head = document.createElement('div');
+      head.className = 'completed-card-head';
+      const nm = document.createElement('div');
+      nm.className = 'completed-card-name';
+      nm.textContent = cs.name;
+      const badge = document.createElement('span');
+      badge.className = 'status-badge ' + statusClass(cs.status);
+      badge.textContent = statusLabel(cs.status);
+      head.append(nm, badge);
+      card.appendChild(head);
+      list.appendChild(card);
+    });
+  }
+
+  setInterval(checkSprintCompletion, 60000);
+  checkSprintCompletion();
+
+  /* ── MISSION BRIEFING ── */
+  const DIFFICULTY_WEIGHTS = { hb: 3, anchor: 2, med: 1, low: 0.5, brk: 0 };
+  const PRIME_TIMES = {
+    wind:   'Wind to The Morning',
+    echo:   'Echos of Identity',
+    fallow: 'Meaning in the Fallow',
+  };
+
+  function calcDifficulty(tasks) {
+    const total = tasks.reduce((s, t) => s + (DIFFICULTY_WEIGHTS[t.type] || 0), 0);
+    const max   = tasks.length * 3;
+    const pct   = max > 0 ? total / max : 0;
+    if (pct >= 0.75) return { label: 'BRUTAL',   pct: 1.0,  color: '#e05a4a' };
+    if (pct >= 0.5)  return { label: 'HARD',     pct: 0.75, color: '#e08a2a' };
+    if (pct >= 0.25) return { label: 'MODERATE', pct: 0.5,  color: '#00c8c8' };
+    return               { label: 'EASY',     pct: 0.25, color: '#6aaf7a' };
+  }
+
+  function calcPrimeTime(tasks) {
+    const counts = { wind: 0, echo: 0, fallow: 0 };
+    tasks.forEach(t => { if (t.type === 'anchor' || t.type === 'hb') counts[t.period] = (counts[t.period] || 0) + 1; });
+    return Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
+  }
+
+  async function generateMissionDesc(sprint) {
+    const taskList = sprint.tasks.map(t => t.name + ' (' + t.dur + 'min, ' + t.type + ')').join(', ');
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 100,
+          messages: [{
+            role: 'user',
+            content: 'Write a 2-sentence mission briefing for a daily planning sprint called "' + sprint.name + '" with these tasks: ' + taskList + '. Make it feel like a video game mission description — punchy, energetic, specific to the tasks. No quotes, no labels, just the description.'
+          }]
+        })
+      });
+      const data = await res.json();
+      return data.content?.[0]?.text?.trim() || fallbackDesc(sprint);
+    } catch {
+      return fallbackDesc(sprint);
+    }
+  }
+
+  function fallbackDesc(sprint) {
+    const diff  = calcDifficulty(sprint.tasks);
+    const total = sprintMins(sprint);
+    return sprint.tasks.length + ' tasks, ' + total + ' minutes. ' + (diff.label === 'BRUTAL' ? 'This one demands everything.' : diff.label === 'HARD' ? 'Expect resistance — push through.' : diff.label === 'MODERATE' ? 'A solid mix. Stay locked in.' : 'Light work. Build your momentum.');
+  }
+
+  async function openMissionBriefing(sprint) {
+    pendingSprintId = sprint.id;
+    const pos        = sprints.indexOf(sprint) + 1;
+    const diff       = calcDifficulty(sprint.tasks);
+    const periodKey  = calcPrimeTime(sprint.tasks);
+
+    // Apply period theme class
+    const card = document.getElementById('mission-card');
+    card.className = 'mission-card period-' + periodKey;
+
+    document.getElementById('mission-num').textContent        = 'MISSION ' + String(pos).padStart(2, '0');
+    document.getElementById('confirm-title').textContent      = sprint.name.toUpperCase();
+    document.getElementById('mission-difficulty').textContent = diff.label;
+    document.getElementById('mission-bar').style.width        = (diff.pct * 100) + '%';
+    document.getElementById('mission-primetime').textContent  = PRIME_TIMES[periodKey] || PRIME_TIMES.wind;
+    document.getElementById('mission-desc').innerHTML         = '<span class="mission-desc-loading">Preparing mission briefing...</span>';
+    document.getElementById('confirm-overlay').classList.add('open');
+
+    const desc = await generateMissionDesc(sprint);
+    document.getElementById('mission-desc').textContent = desc;
+  }
+
+  document.getElementById('confirm-no') && document.getElementById('confirm-no').addEventListener('click', () => {
+    document.getElementById('confirm-overlay').classList.remove('open');
+    pendingSprintId = null;
+  });
+
+  document.getElementById('confirm-overlay').addEventListener('click', function(e) {
+    if (e.target === this) { this.classList.remove('open'); pendingSprintId = null; }
+  });
+
+  /* ── CTX MENU ── */
+  function openCtx(e, id) { e.stopPropagation(); ctxTargetId = id; const m = document.getElementById('ctx-menu'); m.classList.add('open'); m.style.top = e.clientY+'px'; m.style.left = e.clientX+'px'; }
+  function closeCtx() { document.getElementById('ctx-menu').classList.remove('open'); }
+  document.addEventListener('click', closeCtx);
+  document.getElementById('ctx-edit').addEventListener('click', () => { closeCtx(); const s = sprints.find(x => x.id === ctxTargetId); if (s) openModal(s); });
+  document.getElementById('ctx-delete').addEventListener('click', () => {
+    closeCtx();
+    sprints = sprints.filter(s => s.id !== ctxTargetId);
+    activeSprints.delete(ctxTargetId);
+    events = events.filter(e => e.sprintId !== ctxTargetId);
+    save(); renderSprints(); renderEvents(); toast('Sprint deleted');
+  });
+
+  /* ── ACTIVATE ── */
+  document.getElementById('confirm-ok').addEventListener('click', () => {
+    document.getElementById('confirm-overlay').classList.remove('open');
+    if (!pendingSprintId) return;
+    const sprint = sprints.find(s => s.id === pendingSprintId); if (!sprint) return;
+    activeSprints.add(sprint.id);
+    const now = new Date(); let cursor = now.getHours() + now.getMinutes()/60;
+    sprint.tasks.forEach(t => {
+      events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col: 'today' });
+      cursor += t.dur / 60;
+    });
+    save(); renderSprints(); renderEvents(); toast('"' + sprint.name + '" — mission launched!'); pendingSprintId = null;
+  });
+
+  /* ── RENDER EVENTS ── */
+  function renderEvents() {
+    const colT = document.getElementById('col-today'), colN = document.getElementById('col-tmrw');
+    colT.querySelectorAll('.event-block').forEach(el => el.remove());
+    colN.querySelectorAll('.event-block').forEach(el => el.remove());
+
+    events.forEach(ev => {
+      const col = ev.col === 'today' ? colT : colN;
+      const block = document.createElement('div');
+      block.className = 'event-block ' + eventClass(ev.period, ev.type);
+      block.dataset.id = ev.id;
+      block.style.top    = (ev.startH * HOUR_PX + 1) + 'px';
+      const hPx = Math.max((ev.dur/60)*HOUR_PX - 2, 20);
+      block.style.height = hPx + 'px';
+      block.innerHTML = '<div class="event-name">' + ev.name + '</div>';
+      col.appendChild(block);
+    });
+  }
+
+  // Repack events for a sprint starting from the original activation time
+  function repackSprintEvents(sprintId) {
+    const sprintEvents = events.filter(e => e.sprintId === sprintId);
+    if (!sprintEvents.length) return;
+    let cursor = Math.min(...sprintEvents.map(e => e.startH));
+    sprintEvents.forEach(ev => {
+      ev.startH = cursor;
+      cursor += ev.dur / 60;
+    });
+  }
+
+  /* ── MODAL ── */
+  function openModal(sprint) {
+    editingSprintId = sprint ? sprint.id : null;
+    modalTasks = []; modalUid = 0;
+    document.getElementById('modal-tasks').innerHTML = '';
+    document.getElementById('modal-sprint-name').value = sprint ? sprint.name : '';
+    document.getElementById('modal-overlay').classList.add('open');
+    if (sprint) sprint.tasks.forEach(t => addModalRow(t.name, t.dur, t.period, t.type));
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    const cb = document.getElementById('modal-save-to-lib');
+    if (cb) { cb.checked = false; document.getElementById('modal-save-to-lib-label').classList.remove('active'); }
+    editingSprintId = null;
+  }
+  document.getElementById('open-studio').addEventListener('click', () => openModal(null));
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('modal-overlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+  document.getElementById('modal-add-task').addEventListener('click', () => addModalRow('', 20, 'wind', 'anchor'));
+
+  document.getElementById('modal-save').addEventListener('click', () => {
+    const name = document.getElementById('modal-sprint-name').value.trim();
+    if (!name) { toast('Give this sprint a name first'); return; }
+    if (!modalTasks.length) { toast('Add at least one task'); return; }
+    const tasksCopy = modalTasks.map(t => ({ id: genId(), name: t.name, dur: t.dur, period: t.period, type: t.type }));
+    if (editingSprintId) {
+      const idx = sprints.findIndex(s => s.id === editingSprintId);
+      if (idx > -1) { sprints[idx].name = name; sprints[idx].tasks = tasksCopy; }
+    } else {
+      sprints.push({ id: genId(), name, tasks: tasksCopy });
+    }
+    // Save to Sprint Library if checked
+    if (document.getElementById('modal-save-to-lib').checked) {
+      const existing = sprintLibrary.findIndex(s => s.name === name);
+      const preset = { id: genId(), name, tasks: tasksCopy };
+      if (existing > -1) sprintLibrary[existing] = preset;
+      else sprintLibrary.push(preset);
+      toast('"' + name + '" saved to Library');
+    } else {
+      toast('"' + name + '" saved');
+    }
+    save(); renderSprints(); closeModal();
+    document.getElementById('modal-save-to-lib').checked = false;
+  });
+
+  /* ── SPRINT LIBRARY PANEL ── */
+  function openLibraryPanel() {
+    document.getElementById('sprints-view').style.display = 'none';
+    document.getElementById('library-view').classList.add('open');
+    renderLibraryPanel();
+  }
+
+  function closeLibraryPanel() {
+    document.getElementById('library-view').classList.remove('open');
+    document.getElementById('sprints-view').style.display = '';
+  }
+
+  function renderLibraryPanel() {
+    const list = document.getElementById('library-sprint-list');
+    list.innerHTML = '';
+    if (!sprintLibrary.length) {
+      list.innerHTML = '<div class="empty-state">No presets yet.<br>Save a sprint to the library from Sprint Studio.</div>';
+      return;
+    }
+    sprintLibrary.forEach((preset, i) => {
+      const item = document.createElement('div');
+      item.className = 'lib-sprint-item';
+
+      const info = document.createElement('div');
+      info.style.cssText = 'flex:1;min-width:0;';
+      const nm = document.createElement('div'); nm.className = 'lib-sprint-name'; nm.textContent = preset.name;
+      const meta = document.createElement('div'); meta.className = 'lib-sprint-meta';
+      meta.textContent = preset.tasks.length + ' tasks · ' + preset.tasks.reduce((s,t) => s+t.dur, 0) + 'm';
+      info.append(nm, meta);
+
+      const addBtn = document.createElement('button');
+      addBtn.className = 'lib-sprint-add';
+      addBtn.textContent = '+ Add';
+      addBtn.addEventListener('click', () => {
+        // Add as new sprint to today's list
+        const newSprint = { id: genId(), name: preset.name, tasks: preset.tasks.map(t => ({...t, id: genId()})) };
+        sprints.push(newSprint);
+        save(); renderSprints();
+        closeLibraryPanel();
+        toast('"' + preset.name + '" added to today');
+      });
+
+      item.append(info, addBtn);
+      list.appendChild(item);
+    });
+  }
+
+  document.getElementById('open-library').addEventListener('click', openLibraryPanel);
+  document.getElementById('close-library').addEventListener('click', closeLibraryPanel);
+
+  document.getElementById('modal-save-to-lib-label').addEventListener('click', function(e) {
+    e.preventDefault();
+    const cb = document.getElementById('modal-save-to-lib');
+    cb.checked = !cb.checked;
+    this.classList.toggle('active', cb.checked);
+  });
+
+  function addModalRow(name, dur, period, type) {
+    const task = { id: modalUid++, name, dur, period: period || 'wind', type: type || 'anchor' };
+    modalTasks.push(task);
+
+    const list = document.getElementById('modal-tasks');
+    const row  = document.createElement('div'); row.className = 'modal-task-row'; row.dataset.uid = task.id;
+    const top  = document.createElement('div'); top.className = 'modal-task-top';
+
+    const ni = document.createElement('input'); ni.className = 'mt-name'; ni.type = 'text'; ni.placeholder = 'Task name'; ni.value = name;
+    ni.addEventListener('input', () => { task.name = ni.value; });
+
+    const di = document.createElement('input'); di.className = 'mt-dur'; di.type = 'number'; di.min = 1; di.max = 480; di.value = dur;
+    di.addEventListener('input', () => { task.dur = parseInt(di.value) || 0; });
+
+    const ml2 = document.createElement('span'); ml2.className = 'mt-min'; ml2.textContent = 'min';
+    const up  = document.createElement('button'); up.className = 'mt-ibtn'; up.textContent = '↑'; up.addEventListener('click', () => moveRow(task.id, -1));
+    const dn  = document.createElement('button'); dn.className = 'mt-ibtn'; dn.textContent = '↓'; dn.addEventListener('click', () => moveRow(task.id, 1));
+    const saveTask = document.createElement('button'); saveTask.className = 'mt-ibtn'; saveTask.title = 'Save to library'; saveTask.textContent = '⊕';
+    saveTask.addEventListener('click', () => {
+      if (!task.name.trim()) { toast('Name the task first'); return; }
+      if (library.find(l => l.name === task.name)) { toast('Already in library'); return; }
+      library.push({ name: task.name, dur: task.dur, period: task.period, type: task.type });
+      saveLS('sprint_library', library);
+      buildLibrary();
+      toast('"' + task.name + '" saved to library');
+    });
+    const del = document.createElement('button'); del.className = 'mt-ibtn del'; del.textContent = '✕';
+    del.addEventListener('click', () => { modalTasks = modalTasks.filter(t => t.id !== task.id); row.remove(); });
+    top.append(ni, di, ml2, up, dn, saveTask, del);
+
+    /* Period row */
+    const pr = document.createElement('div'); pr.className = 'mt-periods';
+    const pBtns = [];
+    PERIODS.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'mt-period' + (task.period === p.key ? ' p-' + p.key : '');
+      btn.textContent = p.label;
+      btn.addEventListener('click', () => {
+        task.period = p.key;
+        pBtns.forEach(b => { b.className = 'mt-period'; });
+        btn.className = 'mt-period p-' + p.key;
+        // Update anchor type button appearance
+        refreshTypeBtns(tBtns, task);
+      });
+      pBtns.push(btn); pr.appendChild(btn);
+    });
+
+    /* Type row */
+    const tr2 = document.createElement('div'); tr2.className = 'mt-types';
+    const tBtns = [];
+    TYPES.forEach(tp => {
+      const btn = document.createElement('button');
+      btn.className = 'mt-type';
+      btn.textContent = tp.label;
+      btn.addEventListener('click', () => {
+        task.type = tp.key;
+        refreshTypeBtns(tBtns, task);
+      });
+      tBtns.push(btn); tr2.appendChild(btn);
+    });
+    refreshTypeBtns(tBtns, task);
+
+    row.append(top, pr, tr2);
+    list.appendChild(row);
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function refreshTypeBtns(btns, task) {
+    const keys = ['hb','anchor','med','low','brk'];
+    btns.forEach((btn, i) => {
+      btn.className = 'mt-type';
+      if (keys[i] === task.type) {
+        if (task.type === 'anchor') btn.className = 'mt-type t-anchor-' + task.period;
+        else btn.className = 'mt-type t-' + task.type;
+      }
+    });
+  }
+
+  function moveRow(id, dir) {
+    const idx = modalTasks.findIndex(t => t.id === id), ni = idx + dir;
+    if (ni < 0 || ni >= modalTasks.length) return;
+    [modalTasks[idx], modalTasks[ni]] = [modalTasks[ni], modalTasks[idx]];
+    const list = document.getElementById('modal-tasks');
+    const rows = Array.from(list.children);
+    const rA = rows.find(r => parseInt(r.dataset.uid) === modalTasks[idx].id);
+    const rB = rows.find(r => parseInt(r.dataset.uid) === modalTasks[ni].id);
+    if (!rA || !rB) return;
+    if (dir === -1) list.insertBefore(rB, rA); else list.insertBefore(rA, rB.nextSibling);
+  }
+
+  /* ── LIBRARY ── */
+  function buildLibrary() {
+    const el = document.getElementById('lib-list'); el.innerHTML = '';
+    library.forEach(item => {
+      const row = document.createElement('div'); row.className = 'lib-item';
+      const dot = document.createElement('div'); dot.className = 'lib-dot'; dot.style.background = dotColor(item.period, item.type);
+      const nm  = document.createElement('span'); nm.className = 'lib-name'; nm.textContent = item.name;
+      const dur = document.createElement('span'); dur.className = 'lib-dur'; dur.textContent = item.dur + 'm';
+      row.append(dot, nm, dur);
+      row.addEventListener('click', () => { addModalRow(item.name, item.dur, item.period, item.type); toast('"' + item.name + '" added'); });
+      el.appendChild(row);
+    });
+  }
+
+  /* ── INIT ── */
+  dailyReset();
+  setupCalendar();
+  renderSprints();
+  renderEvents();
+  buildLibrary();
+  renderCompleted();
+
+  /* ── COLLAPSE ── */
+  (function() {
+    const btn  = document.getElementById('collapse-btn');
+    const body = document.getElementById('left-collapsible');
+    let collapsed = loadLS('sprint_collapsed', false);
+
+    function applyCollapse() {
+      if (collapsed) {
+        body.style.maxHeight = '0px';
+        body.classList.add('collapsed');
+        btn.textContent = '▼';
+      } else {
+        body.style.maxHeight = body.scrollHeight + 'px';
+        body.classList.remove('collapsed');
+        btn.textContent = '▲';
+      }
+    }
+
+    applyCollapse();
+
+    btn.addEventListener('click', () => {
+      collapsed = !collapsed;
+      saveLS('sprint_collapsed', collapsed);
+      applyCollapse();
+    });
+  })();
+})();
+</script>
+</body>
+</html>
