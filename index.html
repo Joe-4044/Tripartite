@@ -1616,7 +1616,6 @@
     colTmrw.querySelectorAll('.preplan-block').forEach(el => el.remove());
     const tomorrow = getTomorrowPreplan();
     tomorrow.forEach(p => {
-      // Use inline data (saved with entry) or fall back to library lookup
       const tasks = p.tasks || (sprintLibrary.find(s => s.id === p.sprintId) || {}).tasks;
       const sprintName = p.name || (sprintLibrary.find(s => s.id === p.sprintId) || {}).name || 'Sprint';
       if (!tasks) return;
@@ -1626,10 +1625,37 @@
 
       const block = document.createElement('div');
       block.className = 'preplan-block';
-      block.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:6px;border:1px dashed #2586b7;background:rgba(37,134,183,0.08);z-index:2;display:flex;align-items:flex-start;padding:4px 8px;pointer-events:none;overflow:hidden;';
+      block.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:6px;border:1px dashed #2586b7;background:rgba(37,134,183,0.08);z-index:2;padding:4px 8px;cursor:pointer;overflow:hidden;';
       block.style.top = (p.startH * HOUR_PX + 1) + 'px';
       block.style.height = Math.max(hPx - 2, 20) + 'px';
-      block.innerHTML = '<div style="font-size:11px;color:#2586b7;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + sprintName + '</div>';
+
+      const nameEl = document.createElement('div');
+      nameEl.style.cssText = 'font-size:11px;color:#2586b7;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+      nameEl.textContent = sprintName;
+
+      const cancelEl = document.createElement('div');
+      cancelEl.style.cssText = 'font-size:9px;color:#2586b7;opacity:0.5;margin-top:2px;';
+      cancelEl.textContent = 'tap to cancel preplan';
+
+      block.appendChild(nameEl);
+      if (hPx >= 36) block.appendChild(cancelEl);
+
+      block.addEventListener('click', () => {
+        // Remove from preplan
+        const updated = getTomorrowPreplan().filter(x => x.sprintId !== p.sprintId);
+        saveLS('sprint_preplan_tomorrow', updated);
+
+        // Put back in Today's Sprints if not already there
+        const alreadyToday = sprints.find(s => s.id === p.sprintId || s.name === sprintName);
+        if (!alreadyToday) {
+          sprints.push({ id: p.sprintId, name: sprintName, tasks });
+          save();
+          renderSprints();
+        }
+
+        renderPreplanOnCalendar();
+        toast('"' + sprintName + '" preplan cancelled — back in Today\'s Sprints');
+      });
 
       const rec = document.createElement('div');
       rec.className = 'preplan-block';
