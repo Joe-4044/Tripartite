@@ -128,20 +128,37 @@
   .library-panel-scroll { flex: 1; overflow-y: auto; padding: 14px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 
   .lib-sprint-item {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 12px; background: var(--card); border: 1px solid var(--border);
-    border-radius: 8px; margin-bottom: 7px; cursor: pointer;
-    transition: border-color 0.15s;
+    display: flex; flex-direction: column;
+    padding: 12px 14px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 8px;
+    transition: border-color 0.15s; gap: 10px;
   }
   .lib-sprint-item:hover { border-color: #2586b7; }
-  .lib-sprint-name { font-size: 12px; color: var(--text); font-weight: 500; }
+  .lib-sprint-name { font-size: 13px; color: var(--text); font-weight: 600; }
   .lib-sprint-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
   .lib-sprint-add {
-    background: var(--card2); border: 1px solid var(--border); border-radius: 5px;
-    color: var(--text3); font-size: 11px; font-family: inherit;
-    padding: 4px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    background: var(--card2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text2); font-size: 11px; font-family: inherit;
+    padding: 6px 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: all 0.15s;
   }
   .lib-sprint-add:hover { background: #1a1f2a; border-color: #2586b7; color: #6a92af; }
+
+  /* Recovery option buttons */
+  .recovery-opt {
+    flex: 1; height: 34px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text2); font-size: 12px;
+    font-family: inherit; cursor: pointer; transition: all 0.15s;
+  }
+  .recovery-opt:hover { border-color: #2586b7; color: #6a92af; }
+  .recovery-opt.active { background: #1a1f2a; border-color: #2586b7; color: #6a92af; }
+
+  /* Library card expand */
+  .lib-sprint-tasks { display: none; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+  .lib-sprint-tasks.open { display: block; }
+  .lib-sprint-task-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 11px; color: var(--text2); }
+  .lib-sprint-expand { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 11px; padding: 0; line-height: 1; }
+  .lib-sprint-expand:hover { color: var(--text2); }
 
   /* Save to Library toggle */
   .lib-toggle-row {
@@ -556,7 +573,7 @@
           <div class="lib-toggle-track">
             <div class="lib-toggle-knob"></div>
           </div>
-          <span class="lib-toggle-label">Save to Library</span>
+          <span class="lib-toggle-label">Save to Library (not Today)</span>
           <input type="checkbox" id="modal-save-to-lib" style="display:none;" />
         </label>
         <button class="modal-save" id="modal-save">Save sprint</button>
@@ -596,10 +613,76 @@
 <!-- CTX MENU -->
 <div class="ctx-menu" id="ctx-menu">
   <div class="ctx-item" id="ctx-edit">Edit sprint</div>
+  <div class="ctx-item" id="ctx-preplan">Preplan for Tomorrow</div>
   <div class="ctx-item danger" id="ctx-delete">Delete sprint</div>
 </div>
 
+<!-- PREPLAN PROMPT -->
+<div class="modal-overlay" id="preplan-prompt-overlay">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;width:320px;display:flex;flex-direction:column;gap:16px;">
+    <div>
+      <div style="font-size:11px;letter-spacing:0.1em;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Sprint saved</div>
+      <div style="font-size:16px;font-weight:600;color:var(--text);" id="preplan-prompt-name"></div>
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.6;">Would you like to preplan this sprint for tomorrow?</div>
+    <div style="display:flex;gap:8px;">
+      <button class="modal-save" id="preplan-prompt-yes" style="background:#1a1f2a;border:1px solid #2586b7;color:#6a92af;">Preplan for Tomorrow</button>
+      <button class="modal-cancel" id="preplan-prompt-no">Not now</button>
+    </div>
+  </div>
+</div>
+
+<!-- DISCREPANCY MODAL -->
+<div class="modal-overlay" id="discrepancy-overlay">
+  <div style="background:var(--panel);border:1px solid #4a2020;border-radius:14px;padding:24px;width:320px;display:flex;flex-direction:column;gap:16px;">
+    <div>
+      <div style="font-size:11px;letter-spacing:0.1em;color:#bf6a6a;text-transform:uppercase;margin-bottom:6px;">⚠ Discrepancy</div>
+      <div style="font-size:16px;font-weight:600;color:var(--text);" id="discrepancy-name"></div>
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.6;">This sprint would run past midnight. Delete it to rebalance the calendar?</div>
+    <input type="hidden" id="discrepancy-sprint-id" />
+    <div style="display:flex;gap:8px;">
+      <button class="modal-save" id="discrepancy-confirm" style="background:#2a1414;border:1px solid #5a2020;color:#e05a4a;">Delete Sprint</button>
+      <button class="modal-cancel" id="discrepancy-cancel">Keep paused</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
+
+<!-- PREPLAN PICKER -->
+<div class="modal-overlay" id="preplan-overlay">
+  <div class="modal" style="max-width:400px;flex-direction:column;">
+    <div style="padding:24px 24px 0;">
+      <div style="font-size:11px;letter-spacing:0.1em;color:var(--text3);text-transform:uppercase;margin-bottom:8px;">Preplan for Tomorrow</div>
+      <div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:4px;" id="preplan-sprint-name">Sprint Name</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:20px;" id="preplan-sprint-meta">5 tasks · 125m</div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:8px;">Start Time</label>
+        <input type="time" id="preplan-time" style="width:100%;height:40px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:0 12px;outline:none;" />
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <label style="font-size:11px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:8px;">Recovery After Sprint</label>
+        <div style="display:flex;gap:6px;" id="recovery-btns">
+          <button class="recovery-opt" data-val="5">5m</button>
+          <button class="recovery-opt active" data-val="10">10m</button>
+          <button class="recovery-opt" data-val="15">15m</button>
+          <button class="recovery-opt" data-val="20">20m</button>
+        </div>
+        <input type="hidden" id="preplan-recovery" value="10" />
+      </div>
+
+      <div id="preplan-conflict" style="display:none;padding:10px 12px;background:#2a1414;border:1px solid #4a2020;border-radius:8px;color:#e08080;font-size:12px;margin-bottom:16px;"></div>
+    </div>
+
+    <div style="padding:0 24px 24px;display:flex;gap:8px;">
+      <button class="modal-save" id="preplan-confirm">Schedule for Tomorrow</button>
+      <button class="modal-cancel" id="preplan-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function () {
@@ -669,7 +752,7 @@
     { name: 'Break',               dur: 10, period: 'wind',   type: 'brk'    },
   ];
 
-  const DEFAULT_SPRINTS = [
+  const DEFAULT_SPRINT_LIBRARY = [
     {
       id: 's1', name: 'The Dolores Sprint',
       tasks: [
@@ -693,27 +776,32 @@
     {
       id: 's3', name: 'The Ender Sprint',
       tasks: [
-        { id: 't11', name: 'Fallow',                dur: 45, period: 'fallow', type: 'hb'     },
-        { id: 't12', name: 'Check Food Availability',dur: 20, period: 'fallow', type: 'anchor' },
+        { id: 't11', name: 'Fallow',                 dur: 45, period: 'fallow', type: 'hb'     },
+        { id: 't12', name: 'Check Food Availability', dur: 20, period: 'fallow', type: 'anchor' },
       ]
     },
   ];
 
   /* ── STATE ── */
-  let sprints          = loadLS('sprint_sprints',    DEFAULT_SPRINTS);
-  let library          = loadLS('sprint_library',    DEFAULT_LIBRARY);
-  let sprintLibrary    = loadLS('sprint_lib_presets',[]);             // saved sprint presets
+  let sprints          = loadLS('sprint_sprints',    []);                    // today's active sprint list (starts empty)
+  let library          = loadLS('sprint_library',    DEFAULT_LIBRARY);       // task library
+  let sprintLibrary    = loadLS('sprint_lib_presets', DEFAULT_SPRINT_LIBRARY); // sprint presets
+  // Migration: if library is empty, populate with defaults
+  if (!sprintLibrary.length) sprintLibrary = DEFAULT_SPRINT_LIBRARY;
+  let preplanned       = loadLS('sprint_preplan',    []);                    // [{sprintId, startH, recoveryMins}] for tomorrow
   let events           = loadLS('sprint_events',     []);
   let uid              = loadLS('sprint_uid',        200);
   let activeSprints    = new Set(loadLS('sprint_active',    []));
-  let doneTasks        = new Set(loadLS('sprint_done_tasks',[]));  // set of event ids marked done
-  let completedSprints = loadLS('sprint_completed',  []);          // [{sprintId, name, status, tasks}]
+  let doneTasks        = new Set(loadLS('sprint_done_tasks',[]));
+  let completedSprints = loadLS('sprint_completed',  []);
   let isLight          = loadLS('sprint_theme',      false);
-  let pendingSprintId = null;
-  let ctxTargetId     = null;
-  let modalTasks      = [];
-  let modalUid        = 0;
-  let editingSprintId = null;
+  let pendingSprintId  = null;
+  let ctxTargetId      = null;
+  let modalTasks       = [];
+  let modalUid         = 0;
+  let editingSprintId  = null;
+  let pausedSprints    = new Set(loadLS('sprint_paused', []));  // paused sprint ids
+  let pausedAt         = loadLS('sprint_paused_at', {});        // {sprintId: pauseTimeH}
 
   function loadLS(k, d) { try { const v = localStorage.getItem(k); return v !== null ? JSON.parse(v) : d; } catch { return d; } }
   function saveLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
@@ -725,6 +813,9 @@
     saveLS('sprint_done_tasks', [...doneTasks]);
     saveLS('sprint_completed',  completedSprints);
     saveLS('sprint_lib_presets',sprintLibrary);
+    saveLS('sprint_preplan',    preplanned);
+    saveLS('sprint_paused',     [...pausedSprints]);
+    saveLS('sprint_paused_at',  pausedAt);
     saveLS('sprint_date',       todayStr());
   }
 
@@ -746,12 +837,29 @@
       completedSprints.push({ sprintId, name: sprint.name, status, tasks: sprint.tasks });
     });
 
+    // Pull tomorrow's preplanned sprints into today
+    const tomorrowPlan = loadLS('sprint_preplan_tomorrow', []);
+    sprints = tomorrowPlan.map(p => {
+      // Use inline data first, fall back to library lookup
+      const tasks = p.tasks || (sprintLibrary.find(s => s.id === p.sprintId) || {}).tasks;
+      const name = p.name || (sprintLibrary.find(s => s.id === p.sprintId) || {}).name;
+      if (!tasks || !name) return null;
+      return { id: genId(), name, tasks, scheduledH: p.startH, recoveryMins: p.recoveryMins || 10, preplanned: true };
+    }).filter(Boolean);
+
     // Clear daily state
     activeSprints    = new Set();
     events           = [];
     doneTasks        = new Set();
     completedSprints = [];
+    pausedSprints    = new Set();
+    pausedAt         = {};
+    preplanned       = [];
 
+    // Keep tomorrow's plan markers for calendar rendering (today's column shows activated sprints, tomorrow shows preplan)
+    // Don't clear sprint_preplan_tomorrow - it shows on tomorrow's column
+    // Instead mark it as "consumed" so daily logic knows they're now today's sprints
+    saveLS('sprint_preplan_consumed', todayStr());
     save();
   }
   function genId() { return 'id_' + (uid++); }
@@ -820,7 +928,7 @@
     const list = document.getElementById('sprints-list');
     const ml   = minutesLeft();
     list.innerHTML = '';
-    if (!sprints.length) { list.innerHTML = '<div class="empty-state">No sprints yet.<br>Hit Sprint Studio to create one.</div>'; return; }
+    if (!sprints.length) { list.innerHTML = '<div class="empty-state">No sprints planned yet.<br>Pull from the <strong>Sprint Library</strong> or preplan the night before.</div>'; return; }
 
     sprints.forEach(sprint => {
       const card = document.createElement('div'); card.className = 'sprint-card';
@@ -902,20 +1010,74 @@
       });
 
       const isActive = activeSprints.has(sprint.id);
+      const isPaused = pausedSprints.has(sprint.id);
       const noTime   = !isActive && sprintMins(sprint) > ml;
       const btn = document.createElement('button');
-      btn.className = 'activate-btn' + (isActive ? ' active' : '');
+      btn.className = 'activate-btn' + (isActive && !isPaused ? ' active' : '');
       btn.disabled  = isActive || noTime;
-      btn.textContent = isActive ? 'Active' : noTime ? 'Not enough time (' + sprintMins(sprint) + 'm)' : 'Activate sprint';
+      btn.textContent = isActive ? (isPaused ? 'Paused' : 'Active') : noTime ? 'Not enough time (' + sprintMins(sprint) + 'm)' : 'Activate sprint';
+      if (isActive && isPaused) { btn.style.opacity = '0.5'; }
 
       if (!isActive && !noTime) {
-        btn.addEventListener('click', () => {
-          openMissionBriefing(sprint);
-        });
+        btn.addEventListener('click', () => { openMissionBriefing(sprint); });
       }
       card.appendChild(btn);
+
+      if (isActive) {
+        const pauseBtn = document.createElement('button');
+        pauseBtn.className = 'activate-btn';
+        pauseBtn.style.marginTop = '5px';
+        if (isPaused) { pauseBtn.style.borderColor = '#2a5a2a'; pauseBtn.style.color = '#6aaf7a'; }
+        else { pauseBtn.style.borderColor = '#5a3a1a'; pauseBtn.style.color = '#bf8a4a'; }
+        pauseBtn.textContent = isPaused ? '▶ Resume Sprint' : '⏸ Pause Sprint';
+        pauseBtn.addEventListener('click', () => { if (isPaused) resumeSprint(sprint.id); else pauseSprint(sprint.id); });
+        card.appendChild(pauseBtn);
+      }
+
       list.appendChild(card);
     });
+  }
+
+  /* ── PAUSE / RESUME ── */
+  function pauseSprint(sprintId) {
+    const now = new Date();
+    pausedSprints.add(sprintId);
+    pausedAt[sprintId] = now.getHours() + now.getMinutes() / 60;
+    save(); renderSprints();
+    toast('Sprint paused');
+  }
+
+  function resumeSprint(sprintId) {
+    const now = new Date();
+    const nowH = now.getHours() + now.getMinutes() / 60;
+    const pauseH = pausedAt[sprintId] || nowH;
+    const elapsed = nowH - pauseH; // hours lost
+
+    // Shift all events for this sprint forward by elapsed time
+    events.forEach(ev => {
+      if (ev.sprintId === sprintId) ev.startH += elapsed;
+    });
+
+    // Check discrepancy
+    const sprintEvs = events.filter(ev => ev.sprintId === sprintId);
+    const maxEnd = Math.max(...sprintEvs.map(ev => ev.startH + ev.dur / 60));
+    if (maxEnd > 24) {
+      showDiscrepancy(sprintId);
+      return;
+    }
+
+    pausedSprints.delete(sprintId);
+    delete pausedAt[sprintId];
+    save(); renderSprints(); renderEvents();
+    toast('Sprint resumed');
+  }
+
+  function showDiscrepancy(sprintId) {
+    const sprint = sprints.find(s => s.id === sprintId);
+    const name = sprint ? sprint.name : 'Sprint';
+    document.getElementById('discrepancy-name').textContent = name;
+    document.getElementById('discrepancy-sprint-id').value = sprintId;
+    document.getElementById('discrepancy-overlay').classList.add('open');
   }
 
   /* ── COMPLETED SPRINTS ── */
@@ -983,8 +1145,26 @@
     });
   }
 
+  // Auto-trigger mission briefing for preplanned sprints at scheduled time
+  function checkAutoTrigger() {
+    const now = new Date();
+    const nowH = now.getHours() + now.getMinutes() / 60;
+    sprints.forEach(sprint => {
+      if (!sprint.preplanned) return;
+      if (activeSprints.has(sprint.id)) return;
+      if (!sprint.scheduledH) return;
+      // Trigger within a 1-minute window of the scheduled time
+      const diff = nowH - sprint.scheduledH;
+      if (diff >= 0 && diff < (1/60)) {
+        openMissionBriefing(sprint);
+      }
+    });
+  }
+
   setInterval(checkSprintCompletion, 60000);
+  setInterval(checkAutoTrigger, 30000);
   checkSprintCompletion();
+  checkAutoTrigger();
 
   /* ── MISSION BRIEFING ── */
   const DIFFICULTY_WEIGHTS = { hb: 3, anchor: 2, med: 1, low: 0.5, brk: 0 };
@@ -1074,12 +1254,19 @@
   function closeCtx() { document.getElementById('ctx-menu').classList.remove('open'); }
   document.addEventListener('click', closeCtx);
   document.getElementById('ctx-edit').addEventListener('click', () => { closeCtx(); const s = sprints.find(x => x.id === ctxTargetId); if (s) openModal(s); });
+  document.getElementById('ctx-preplan').addEventListener('click', () => { closeCtx(); const s = sprints.find(x => x.id === ctxTargetId); if (s) openPreplanPicker({ id: s.id, name: s.name, tasks: s.tasks }); });
   document.getElementById('ctx-delete').addEventListener('click', () => {
     closeCtx();
     sprints = sprints.filter(s => s.id !== ctxTargetId);
     activeSprints.delete(ctxTargetId);
     events = events.filter(e => e.sprintId !== ctxTargetId);
-    save(); renderSprints(); renderEvents(); toast('Sprint deleted');
+
+    // Remove from tomorrow's preplan if it was preplanned
+    const tomorrow = getTomorrowPreplan().filter(p => p.sprintId !== ctxTargetId);
+    saveLS('sprint_preplan_tomorrow', tomorrow);
+
+    save(); renderSprints(); renderEvents(); renderPreplanOnCalendar();
+    toast('Sprint deleted');
   });
 
   /* ── ACTIVATE ── */
@@ -1152,24 +1339,37 @@
     if (!name) { toast('Give this sprint a name first'); return; }
     if (!modalTasks.length) { toast('Add at least one task'); return; }
     const tasksCopy = modalTasks.map(t => ({ id: genId(), name: t.name, dur: t.dur, period: t.period, type: t.type }));
+    const saveToLib = document.getElementById('modal-save-to-lib').checked;
+    let savedSprint = null;
+    const isNew = !editingSprintId;
+
     if (editingSprintId) {
+      // Editing existing sprint — update in place (today's or library)
       const idx = sprints.findIndex(s => s.id === editingSprintId);
-      if (idx > -1) { sprints[idx].name = name; sprints[idx].tasks = tasksCopy; }
-    } else {
-      sprints.push({ id: genId(), name, tasks: tasksCopy });
-    }
-    // Save to Sprint Library if checked
-    if (document.getElementById('modal-save-to-lib').checked) {
+      if (idx > -1) { sprints[idx].name = name; sprints[idx].tasks = tasksCopy; savedSprint = sprints[idx]; }
+      const libIdx = sprintLibrary.findIndex(s => s.id === editingSprintId);
+      if (libIdx > -1) { sprintLibrary[libIdx].name = name; sprintLibrary[libIdx].tasks = tasksCopy; }
+    } else if (saveToLib) {
+      // New sprint → Library only
+      savedSprint = { id: genId(), name, tasks: tasksCopy };
       const existing = sprintLibrary.findIndex(s => s.name === name);
-      const preset = { id: genId(), name, tasks: tasksCopy };
-      if (existing > -1) sprintLibrary[existing] = preset;
-      else sprintLibrary.push(preset);
+      if (existing > -1) sprintLibrary[existing] = savedSprint;
+      else sprintLibrary.push(savedSprint);
       toast('"' + name + '" saved to Library');
     } else {
-      toast('"' + name + '" saved');
+      // New sprint → Today's Sprints only
+      savedSprint = { id: genId(), name, tasks: tasksCopy };
+      sprints.push(savedSprint);
+      toast('"' + name + '" added to Today\'s Sprints');
     }
+
     save(); renderSprints(); closeModal();
     document.getElementById('modal-save-to-lib').checked = false;
+
+    // Only offer preplan for newly created sprints
+    if (isNew && savedSprint) {
+      setTimeout(() => { showPreplanPrompt(savedSprint); }, 300);
+    }
   });
 
   /* ── SPRINT LIBRARY PANEL ── */
@@ -1191,36 +1391,263 @@
       list.innerHTML = '<div class="empty-state">No presets yet.<br>Save a sprint to the library from Sprint Studio.</div>';
       return;
     }
-    sprintLibrary.forEach((preset, i) => {
+    sprintLibrary.forEach((preset) => {
       const item = document.createElement('div');
       item.className = 'lib-sprint-item';
 
-      const info = document.createElement('div');
-      info.style.cssText = 'flex:1;min-width:0;';
+      // Name + meta
+      const nameRow = document.createElement('div');
       const nm = document.createElement('div'); nm.className = 'lib-sprint-name'; nm.textContent = preset.name;
+      const totalMins = preset.tasks.reduce((s,t) => s+t.dur, 0);
       const meta = document.createElement('div'); meta.className = 'lib-sprint-meta';
-      meta.textContent = preset.tasks.length + ' tasks · ' + preset.tasks.reduce((s,t) => s+t.dur, 0) + 'm';
-      info.append(nm, meta);
+      meta.textContent = preset.tasks.length + ' tasks · ' + totalMins + 'm';
+      nameRow.append(nm, meta);
+
+      // Button row
+      const top = document.createElement('div');
+      top.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
+      const expandBtn = document.createElement('button');
+      expandBtn.className = 'lib-sprint-expand';
+      expandBtn.textContent = '▼';
+      expandBtn.title = 'Show tasks';
+
+      const btns = document.createElement('div');
+      btns.style.cssText = 'display:flex;gap:6px;flex:1;';
 
       const addBtn = document.createElement('button');
       addBtn.className = 'lib-sprint-add';
-      addBtn.textContent = '+ Add';
-      addBtn.addEventListener('click', () => {
-        // Add as new sprint to today's list
+      addBtn.style.flex = '1';
+      addBtn.textContent = '+ Add to Today';
+      addBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const already = sprints.find(s => s.name === preset.name);
+        if (already) { toast('Already in today\'s sprints'); return; }
         const newSprint = { id: genId(), name: preset.name, tasks: preset.tasks.map(t => ({...t, id: genId()})) };
         sprints.push(newSprint);
-        save(); renderSprints();
-        closeLibraryPanel();
+        save(); renderSprints(); closeLibraryPanel();
         toast('"' + preset.name + '" added to today');
       });
 
-      item.append(info, addBtn);
+      const preplanBtn = document.createElement('button');
+      preplanBtn.className = 'lib-sprint-add';
+      preplanBtn.style.cssText = 'flex:1;border-color:#2a4a6a;color:#6a9abf;';
+      preplanBtn.textContent = 'Preplan Tomorrow';
+      preplanBtn.addEventListener('click', (e) => { e.stopPropagation(); openPreplanPicker(preset); });
+
+      btns.append(addBtn, preplanBtn);
+      top.append(expandBtn, btns);
+
+      // Task breakdown hidden by default
+      const taskList = document.createElement('div');
+      taskList.className = 'lib-sprint-tasks';
+      preset.tasks.forEach(t => {
+        const row = document.createElement('div');
+        row.className = 'lib-sprint-task-row';
+        const dot = document.createElement('span');
+        dot.style.cssText = 'width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-right:6px;background:' + dotColor(t.period, t.type) + ';display:inline-block;';
+        const tname = document.createElement('span'); tname.style.flex = '1'; tname.textContent = t.name;
+        const tdur = document.createElement('span'); tdur.style.color = 'var(--text3)'; tdur.textContent = t.dur + 'm';
+        row.append(dot, tname, tdur);
+        taskList.appendChild(row);
+      });
+
+      expandBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = taskList.classList.toggle('open');
+        expandBtn.textContent = open ? '▲' : '▼';
+      });
+
+      item.append(nameRow, top, taskList);
       list.appendChild(item);
     });
   }
 
   document.getElementById('open-library').addEventListener('click', openLibraryPanel);
   document.getElementById('close-library').addEventListener('click', closeLibraryPanel);
+
+  /* ── PREPLAN ── */
+  let preplanTarget = null; // the sprint preset being preplanned
+
+  function openPreplanPicker(preset) {
+    preplanTarget = preset;
+    const totalMins = preset.tasks.reduce((s,t) => s+t.dur, 0);
+    document.getElementById('preplan-sprint-name').textContent = preset.name;
+    document.getElementById('preplan-sprint-meta').textContent = preset.tasks.length + ' tasks · ' + totalMins + 'm';
+    document.getElementById('preplan-conflict').style.display = 'none';
+    const now = new Date();
+    now.setHours(now.getHours() + 1, 0, 0, 0);
+    document.getElementById('preplan-time').value = String(now.getHours()).padStart(2,'0') + ':00';
+    resetRecoveryBtns(10);
+    document.getElementById('preplan-overlay').classList.add('open');
+  }
+
+  function closePreplanPicker() {
+    document.getElementById('preplan-overlay').classList.remove('open');
+    preplanTarget = null;
+  }
+
+  function getTomorrowPreplan() {
+    return loadLS('sprint_preplan_tomorrow', []);
+  }
+
+  function checkPreplanConflict(startH, durationMins, recoveryMins, excludeId) {
+    const endH = startH + durationMins / 60 + recoveryMins / 60;
+    const tomorrow = getTomorrowPreplan();
+    for (const p of tomorrow) {
+      if (p.sprintId === excludeId) continue;
+      const tasks = p.tasks || (sprintLibrary.find(s => s.id === p.sprintId) || {}).tasks;
+      const name  = p.name  || (sprintLibrary.find(s => s.id === p.sprintId) || {}).name || 'Another sprint';
+      if (!tasks) continue;
+      const pDur = tasks.reduce((s,t) => s+t.dur, 0);
+      const pEnd = p.startH + pDur / 60 + p.recoveryMins / 60;
+      if (startH < pEnd && endH > p.startH) {
+        return '"' + name + '" is already scheduled at that time.';
+      }
+    }
+    if (endH > 24) return 'This sprint would run past midnight.';
+    return null;
+  }
+
+  document.getElementById('recovery-btns').addEventListener('click', function(e) {
+    const btn = e.target.closest('.recovery-opt');
+    if (!btn) return;
+    document.querySelectorAll('.recovery-opt').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('preplan-recovery').value = btn.dataset.val;
+  });
+
+  // Reset recovery buttons when picker opens
+  function resetRecoveryBtns(val) {
+    document.querySelectorAll('.recovery-opt').forEach(b => {
+      b.classList.toggle('active', b.dataset.val === String(val));
+    });
+    document.getElementById('preplan-recovery').value = val;
+  }
+
+  /* ── PREPLAN PROMPT MODAL ── */
+  let preplanPromptTarget = null;
+
+  function showPreplanPrompt(sprint) {
+    if (!sprint) return;
+    preplanPromptTarget = sprint;
+    document.getElementById('preplan-prompt-name').textContent = sprint.name;
+    document.getElementById('preplan-prompt-overlay').classList.add('open');
+  }
+
+  document.getElementById('preplan-prompt-yes').addEventListener('click', () => {
+    document.getElementById('preplan-prompt-overlay').classList.remove('open');
+    const target = preplanPromptTarget;
+    preplanPromptTarget = null;
+    if (target) setTimeout(() => openPreplanPickerFromStudio(target), 100);
+  });
+
+  document.getElementById('preplan-prompt-no').addEventListener('click', () => {
+    document.getElementById('preplan-prompt-overlay').classList.remove('open');
+    preplanPromptTarget = null;
+  });
+
+  /* ── DISCREPANCY MODAL ── */
+  document.getElementById('discrepancy-confirm').addEventListener('click', () => {
+    const sprintId = document.getElementById('discrepancy-sprint-id').value;
+    sprints = sprints.filter(s => s.id !== sprintId);
+    events = events.filter(ev => ev.sprintId !== sprintId);
+    activeSprints.delete(sprintId);
+    pausedSprints.delete(sprintId);
+    delete pausedAt[sprintId];
+    save(); renderSprints(); renderEvents();
+    document.getElementById('discrepancy-overlay').classList.remove('open');
+    toast('Sprint removed — calendar rebalanced');
+  });
+
+  document.getElementById('discrepancy-cancel').addEventListener('click', () => {
+    document.getElementById('discrepancy-overlay').classList.remove('open');
+  });
+
+  document.getElementById('preplan-confirm').addEventListener('click', () => {
+    if (!preplanTarget) return;
+    const target = preplanTarget; // capture before any async/close clears it
+    const timeVal = document.getElementById('preplan-time').value;
+    if (!timeVal) { toast('Pick a start time'); return; }
+    const [hh, mm] = timeVal.split(':').map(Number);
+    const startH = hh + mm / 60;
+    const recoveryMins = parseInt(document.getElementById('preplan-recovery').value);
+    const totalMins = target.tasks.reduce((s,t) => s+t.dur, 0);
+
+    const conflict = checkPreplanConflict(startH, totalMins, recoveryMins, target.id);
+    if (conflict) {
+      const el = document.getElementById('preplan-conflict');
+      el.textContent = conflict;
+      el.style.display = 'block';
+      return;
+    }
+
+    const tomorrow = getTomorrowPreplan();
+    const existing = tomorrow.findIndex(p => p.sprintId === target.id);
+    const entry = { sprintId: target.id, name: target.name, tasks: target.tasks, startH, recoveryMins };
+    if (existing > -1) tomorrow[existing] = entry;
+    else tomorrow.push(entry);
+    tomorrow.sort((a,b) => a.startH - b.startH);
+    saveLS('sprint_preplan_tomorrow', tomorrow);
+
+    // Auto-save to library if not already there
+    const inLib = sprintLibrary.find(s => s.id === target.id || s.name === target.name);
+    if (!inLib) sprintLibrary.push({ id: target.id, name: target.name, tasks: target.tasks });
+
+    // Remove from Today's Sprints
+    sprints = sprints.filter(s => s.id !== target.id);
+
+    renderPreplanOnCalendar();
+    save();
+    renderSprints();
+    closePreplanPicker();
+    closeLibraryPanel();
+    toast('"' + target.name + '" preplanned for tomorrow');
+  });
+
+  document.getElementById('preplan-cancel').addEventListener('click', closePreplanPicker);
+  document.getElementById('preplan-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closePreplanPicker();
+  });
+
+  // Show preplanned sprints on tomorrow's calendar column as ghosted blocks
+  function renderPreplanOnCalendar() {
+    const colTmrw = document.getElementById('col-tmrw');
+    colTmrw.querySelectorAll('.preplan-block').forEach(el => el.remove());
+    const tomorrow = getTomorrowPreplan();
+    tomorrow.forEach(p => {
+      // Use inline data (saved with entry) or fall back to library lookup
+      const tasks = p.tasks || (sprintLibrary.find(s => s.id === p.sprintId) || {}).tasks;
+      const sprintName = p.name || (sprintLibrary.find(s => s.id === p.sprintId) || {}).name || 'Sprint';
+      if (!tasks) return;
+      const totalMins = tasks.reduce((s,t) => s+t.dur, 0);
+      const hPx = (totalMins / 60) * HOUR_PX;
+      const recPx = (p.recoveryMins / 60) * HOUR_PX;
+
+      const block = document.createElement('div');
+      block.className = 'preplan-block';
+      block.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:6px;border:1px dashed #2586b7;background:rgba(37,134,183,0.08);z-index:2;display:flex;align-items:flex-start;padding:4px 8px;pointer-events:none;overflow:hidden;';
+      block.style.top = (p.startH * HOUR_PX + 1) + 'px';
+      block.style.height = Math.max(hPx - 2, 20) + 'px';
+      block.innerHTML = '<div style="font-size:11px;color:#2586b7;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + sprintName + '</div>';
+
+      const rec = document.createElement('div');
+      rec.className = 'preplan-block';
+      rec.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:4px;background:rgba(37,134,183,0.04);border:1px dashed rgba(37,134,183,0.2);z-index:2;display:flex;align-items:center;padding:0 8px;pointer-events:none;';
+      rec.style.top = ((p.startH + totalMins/60) * HOUR_PX + 1) + 'px';
+      rec.style.height = Math.max(recPx - 2, 14) + 'px';
+      rec.innerHTML = '<div style="font-size:9px;color:#2586b7;opacity:0.6;letter-spacing:0.05em;">RECOVERY</div>';
+
+      colTmrw.appendChild(block);
+      colTmrw.appendChild(rec);
+    });
+  }
+
+  // Also expose openPreplanPicker for Sprint Studio save flow
+  function openPreplanPickerFromStudio(sprint) {
+    // Convert sprint to library-like preset format
+    openPreplanPicker({ id: sprint.id, name: sprint.name, tasks: sprint.tasks });
+  }
 
   document.getElementById('modal-save-to-lib-label').addEventListener('click', function(e) {
     e.preventDefault();
@@ -1340,6 +1767,7 @@
   renderEvents();
   buildLibrary();
   renderCompleted();
+  renderPreplanOnCalendar();
 
   /* ── COLLAPSE ── */
   (function() {
