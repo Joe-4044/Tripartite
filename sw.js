@@ -1,6 +1,5 @@
-const CACHE = 'tripartite-v2';
+const CACHE = 'tripartite-v3';
 const ASSETS = [
-  './',
   './index.html',
   './icon-192.png',
   './icon-512.png',
@@ -26,20 +25,12 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
-  // Let Firebase, Google APIs, and external requests pass through directly
-  if (
-    url.includes('firestore.googleapis.com') ||
-    url.includes('firebase') ||
-    url.includes('googleapis.com') ||
-    url.includes('gstatic.com') ||
-    url.includes('fonts.googleapis.com') ||
-    url.includes('fonts.gstatic.com')
-  ) {
-    e.respondWith(fetch(e.request));
-    return;
+  // Let ALL cross-origin requests pass through — never intercept them
+  if (!url.startsWith(self.location.origin)) {
+    return; // Don't call e.respondWith() — browser handles it natively
   }
 
-  // Cache-first for local assets
+  // Cache-first only for same-origin local assets
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
