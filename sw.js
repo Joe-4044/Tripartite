@@ -1,4 +1,4 @@
-const CACHE = 'tripartite-v1';
+const CACHE = 'tripartite-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -24,6 +24,22 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  const url = e.request.url;
+
+  // Let Firebase, Google APIs, and external requests pass through directly
+  if (
+    url.includes('firestore.googleapis.com') ||
+    url.includes('firebase') ||
+    url.includes('googleapis.com') ||
+    url.includes('gstatic.com') ||
+    url.includes('fonts.googleapis.com') ||
+    url.includes('fonts.gstatic.com')
+  ) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // Cache-first for local assets
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
