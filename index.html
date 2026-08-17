@@ -12,6 +12,47 @@
 <link rel="apple-touch-icon" href="icon-192.png" />
 <title>Tripartite</title>
 <link href="https://fonts.googleapis.com/css2?family=Nokora:wght@400;700&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBrB7X8hZAzasjb0WxVzLuXdWVRh_hMGFs",
+    authDomain: "tripartite-v1.firebaseapp.com",
+    projectId: "tripartite-v1",
+    storageBucket: "tripartite-v1.firebasestorage.app",
+    messagingSenderId: "601154166805",
+    appId: "1:601154166805:web:2843bcca9fa0aa9ac9ee1c"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const db = getFirestore(firebaseApp);
+  const DATA_DOC = doc(db, 'tripartite', 'data');
+
+  // Expose sync functions to global scope for the main script
+  window._fsReady = false;
+  window._fsIgnoreNext = false; // prevent echo when we write
+
+  // Push local state to Firestore
+  window.fsPush = async function(data) {
+    try {
+      window._fsIgnoreNext = true;
+      await setDoc(DATA_DOC, data, { merge: true });
+    } catch(e) { console.warn('Firestore write failed', e); }
+  };
+
+  // Listen for remote changes and apply them
+  onSnapshot(DATA_DOC, (snap) => {
+    if (!snap.exists()) return;
+    if (window._fsIgnoreNext) { window._fsIgnoreNext = false; return; }
+    const d = snap.data();
+    if (window._fsApply) window._fsApply(d);
+  });
+
+  // Signal app that Firebase is ready
+  window._fsReady = true;
+  if (window._fsOnReady) window._fsOnReady();
+</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -880,6 +921,24 @@
     saveLS('sprint_paused',     [...pausedSprints]);
     saveLS('sprint_paused_at',  pausedAt);
     saveLS('sprint_date',       todayStr());
+
+    // Push to Firestore
+    if (window.fsPush) {
+      window.fsPush({
+        sprints,
+        events,
+        uid,
+        activeSprints:    [...activeSprints],
+        doneTasks:        [...doneTasks],
+        completedSprints,
+        sprintLibrary,
+        preplanned,
+        pausedSprints:    [...pausedSprints],
+        pausedAt,
+        date:             todayStr(),
+        preplanTomorrow:  loadLS('sprint_preplan_tomorrow', []),
+      });
+    }
   }
 
   function todayStr() {
@@ -1862,6 +1921,50 @@
       el.appendChild(row);
     });
   }
+
+  /* ── FIRESTORE SYNC ── */
+  window._fsApply = function(d) {
+    // Only apply remote data if it's from the same day
+    if (d.date && d.date !== todayStr()) return;
+
+    let changed = false;
+
+    if (d.sprints)          { sprints = d.sprints; changed = true; }
+    if (d.events)           { events  = d.events;  changed = true; }
+    if (d.sprintLibrary)    { sprintLibrary = d.sprintLibrary; changed = true; }
+    if (d.completedSprints) { completedSprints = d.completedSprints; changed = true; }
+    if (d.activeSprints)    { activeSprints = new Set(d.activeSprints); changed = true; }
+    if (d.doneTasks)        { doneTasks = new Set(d.doneTasks); changed = true; }
+    if (d.pausedSprints)    { pausedSprints = new Set(d.pausedSprints); changed = true; }
+    if (d.pausedAt)         { pausedAt = d.pausedAt; changed = true; }
+    if (d.preplanTomorrow)  { saveLS('sprint_preplan_tomorrow', d.preplanTomorrow); }
+    if (d.uid && d.uid > uid) uid = d.uid;
+
+    // Sync to localStorage
+    if (changed) {
+      saveLS('sprint_sprints',    sprints);
+      saveLS('sprint_events',     events);
+      saveLS('sprint_lib_presets',sprintLibrary);
+      saveLS('sprint_completed',  completedSprints);
+      saveLS('sprint_active',     [...activeSprints]);
+      saveLS('sprint_done_tasks', [...doneTasks]);
+      saveLS('sprint_paused',     [...pausedSprints]);
+      saveLS('sprint_paused_at',  pausedAt);
+      renderSprints();
+      renderEvents();
+      renderCompleted();
+      renderPreplanOnCalendar();
+      buildLibrary();
+    }
+  };
+
+  // Load from Firestore on startup if available
+  window._fsOnReady = async function() {
+    try {
+      const { getFirestore, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      // Data already loaded via onSnapshot — no extra fetch needed
+    } catch(e) {}
+  };
 
   /* ── INIT ── */
   dailyReset();
