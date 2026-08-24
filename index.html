@@ -1924,23 +1924,21 @@
 
   /* ── FIRESTORE SYNC ── */
   window._fsApply = function(d) {
-    // Only apply remote data if it's from the same day
-    if (d.date && d.date !== todayStr()) return;
+    if (!d) return;
 
     let changed = false;
 
-    if (d.sprints)          { sprints = d.sprints; changed = true; }
-    if (d.events)           { events  = d.events;  changed = true; }
-    if (d.sprintLibrary)    { sprintLibrary = d.sprintLibrary; changed = true; }
-    if (d.completedSprints) { completedSprints = d.completedSprints; changed = true; }
-    if (d.activeSprints)    { activeSprints = new Set(d.activeSprints); changed = true; }
-    if (d.doneTasks)        { doneTasks = new Set(d.doneTasks); changed = true; }
-    if (d.pausedSprints)    { pausedSprints = new Set(d.pausedSprints); changed = true; }
-    if (d.pausedAt)         { pausedAt = d.pausedAt; changed = true; }
-    if (d.preplanTomorrow)  { saveLS('sprint_preplan_tomorrow', d.preplanTomorrow); }
-    if (d.uid && d.uid > uid) uid = d.uid;
+    if (d.sprints !== undefined)          { sprints = d.sprints; changed = true; }
+    if (d.events !== undefined)           { events  = d.events;  changed = true; }
+    if (d.sprintLibrary !== undefined)    { sprintLibrary = d.sprintLibrary; changed = true; }
+    if (d.completedSprints !== undefined) { completedSprints = d.completedSprints; changed = true; }
+    if (d.activeSprints !== undefined)    { activeSprints = new Set(d.activeSprints); changed = true; }
+    if (d.doneTasks !== undefined)        { doneTasks = new Set(d.doneTasks); changed = true; }
+    if (d.pausedSprints !== undefined)    { pausedSprints = new Set(d.pausedSprints); changed = true; }
+    if (d.pausedAt !== undefined)         { pausedAt = d.pausedAt; changed = true; }
+    if (d.preplanTomorrow !== undefined)  { saveLS('sprint_preplan_tomorrow', d.preplanTomorrow); }
+    if (d.uid !== undefined && d.uid > uid) uid = d.uid;
 
-    // Sync to localStorage
     if (changed) {
       saveLS('sprint_sprints',    sprints);
       saveLS('sprint_events',     events);
