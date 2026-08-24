@@ -1429,22 +1429,42 @@
   });
 
   /* ── RENDER EVENTS ── */
+  const BLOCK_GAP_PX = 2; // strictly enforced minimum gap between stacked blocks
+
   function renderEvents() {
     const colT = document.getElementById('col-today'), colN = document.getElementById('col-tmrw');
     colT.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
     colN.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
 
-    events.forEach(ev => {
-      const col = ev.col === 'today' ? colT : colN;
-      const block = document.createElement('div');
-      block.className = 'event-block ' + eventClass(ev.period, ev.type);
-      block.dataset.id = ev.id;
-      block.style.top    = (ev.startH * HOUR_PX + 1) + 'px';
-      const hPx = Math.max((ev.dur/60)*HOUR_PX - 2, 14);
-      block.style.height = hPx + 'px';
-      // Tasks under 30 minutes show no text — just the colored block
-      block.innerHTML = ev.dur >= 30 ? '<div class="event-name">' + ev.name + '</div>' : '';
-      col.appendChild(block);
+    // Process each column separately, sorted by start time,
+    // and force each block to start at least BLOCK_GAP_PX after the previous one ends.
+    ['today', 'tmrw'].forEach(colKey => {
+      const col = colKey === 'today' ? colT : colN;
+      const colEvents = events.filter(e => e.col === colKey).sort((a, b) => a.startH - b.startH);
+
+      let prevBottomPx = null;
+
+      colEvents.forEach(ev => {
+        const rawTopPx = ev.startH * HOUR_PX;
+        const rawHPx   = Math.max((ev.dur / 60) * HOUR_PX, 14);
+
+        let topPx = rawTopPx + 1;
+        if (prevBottomPx !== null && topPx < prevBottomPx + BLOCK_GAP_PX) {
+          topPx = prevBottomPx + BLOCK_GAP_PX;
+        }
+
+        const hPx = Math.max(rawHPx - 2, 14);
+
+        const block = document.createElement('div');
+        block.className = 'event-block ' + eventClass(ev.period, ev.type);
+        block.dataset.id = ev.id;
+        block.style.top    = topPx + 'px';
+        block.style.height = hPx + 'px';
+        block.innerHTML = ev.dur >= 30 ? '<div class="event-name">' + ev.name + '</div>' : '';
+        col.appendChild(block);
+
+        prevBottomPx = topPx + hPx;
+      });
     });
 
     // Draw recovery blocks after each sprint's last event
