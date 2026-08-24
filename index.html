@@ -904,6 +904,7 @@
   let modalTasks       = [];
   let modalUid         = 0;
   let editingSprintId  = null;
+  let editingLibrary   = false;
   let pausedSprints    = new Set(loadLS('sprint_paused', []));  // paused sprint ids
   let pausedAt         = loadLS('sprint_paused_at', {});        // {sprintId: pauseTimeH}
 
@@ -1053,7 +1054,12 @@
     if (!sprints.length) { list.innerHTML = '<div class="empty-state">No sprints planned yet.<br>Pull from the <strong>Sprint Library</strong> or preplan the night before.</div>'; return; }
 
     sprints.forEach(sprint => {
-      const card = document.createElement('div'); card.className = 'sprint-card';
+      const card = document.createElement('div');
+      card.className = 'sprint-card';
+      if (completedSprints.some(cs => cs.sprintId === sprint.id)) {
+        card.style.opacity = '0.45';
+        card.style.pointerEvents = 'none';
+      }
       const head = document.createElement('div'); head.className = 'sprint-card-head';
       const nm = document.createElement('div'); nm.className = 'sprint-card-name'; nm.textContent = sprint.name;
       const mb = document.createElement('button'); mb.className = 'sprint-menu-btn'; mb.textContent = '···';
@@ -1090,38 +1096,32 @@
             save(); renderSprints();
           });
 
+          function swapSprintTask(sprintObj, fromIdx, toIdx) {
+            // Swap tasks in sprint definition
+            [sprintObj.tasks[fromIdx], sprintObj.tasks[toIdx]] = [sprintObj.tasks[toIdx], sprintObj.tasks[fromIdx]];
+            // Swap corresponding events
+            const evs = events.filter(ev => ev.sprintId === sprintObj.id);
+            if (evs[fromIdx] && evs[toIdx]) {
+              const gA = events.findIndex(ev => ev.id === evs[fromIdx].id);
+              const gB = events.findIndex(ev => ev.id === evs[toIdx].id);
+              if (gA > -1 && gB > -1) [events[gA], events[gB]] = [events[gB], events[gA]];
+            }
+            repackSprintEvents(sprintObj.id);
+            save(); renderSprints(); renderEvents();
+          }
+
           if (idx > 0) {
             const up = document.createElement('button');
             up.textContent = '↑';
             up.style.cssText = 'background:none;border:none;color:inherit;opacity:0.5;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;';
-            up.addEventListener('click', e => {
-              e.stopPropagation();
-              const evs = events.filter(ev => ev.sprintId === sprint.id);
-              const globalIdxA = events.findIndex(ev => ev.id === evs[idx].id);
-              const globalIdxB = events.findIndex(ev => ev.id === evs[idx - 1].id);
-              if (globalIdxA > -1 && globalIdxB > -1) {
-                [events[globalIdxA], events[globalIdxB]] = [events[globalIdxB], events[globalIdxA]];
-                repackSprintEvents(sprint.id);
-                save(); renderSprints(); renderEvents();
-              }
-            });
+            up.addEventListener('click', e => { e.stopPropagation(); swapSprintTask(sprint, idx, idx - 1); });
             right.appendChild(up);
           }
           if (idx < sprint.tasks.length - 1) {
             const dn = document.createElement('button');
             dn.textContent = '↓';
             dn.style.cssText = 'background:none;border:none;color:inherit;opacity:0.5;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;';
-            dn.addEventListener('click', e => {
-              e.stopPropagation();
-              const evs = events.filter(ev => ev.sprintId === sprint.id);
-              const globalIdxA = events.findIndex(ev => ev.id === evs[idx].id);
-              const globalIdxB = events.findIndex(ev => ev.id === evs[idx + 1].id);
-              if (globalIdxA > -1 && globalIdxB > -1) {
-                [events[globalIdxA], events[globalIdxB]] = [events[globalIdxB], events[globalIdxA]];
-                repackSprintEvents(sprint.id);
-                save(); renderSprints(); renderEvents();
-              }
-            });
+            dn.addEventListener('click', e => { e.stopPropagation(); swapSprintTask(sprint, idx, idx + 1); });
             right.appendChild(dn);
           }
         }
@@ -1131,14 +1131,17 @@
         card.appendChild(pill);
       });
 
-      const isActive = activeSprints.has(sprint.id);
-      const isPaused = pausedSprints.has(sprint.id);
-      const noTime   = !isActive && sprintMins(sprint) > ml;
+      const isActive    = activeSprints.has(sprint.id);
+      const isPaused    = pausedSprints.has(sprint.id);
+      const isCompleted = completedSprints.some(cs => cs.sprintId === sprint.id);
+      const noTime      = !isActive && !isCompleted && sprintMins(sprint) > ml;
       const btn = document.createElement('button');
       btn.className = 'activate-btn' + (isActive && !isPaused ? ' active' : '');
-      btn.disabled  = isActive || noTime;
-      btn.textContent = isActive ? (isPaused ? 'Paused' : 'Active') : noTime ? 'Not enough time (' + sprintMins(sprint) + 'm)' : 'Activate sprint';
-      if (isActive && isPaused) { btn.style.opacity = '0.5'; }
+      btn.disabled  = isActive || noTime || isCompleted;
+      if (isCompleted) { btn.style.opacity = '0.4'; btn.textContent = 'Completed'; }
+      else if (isActive) { btn.textContent = isPaused ? 'Paused' : 'Active'; if (isPaused) btn.style.opacity = '0.5'; }
+      else if (noTime) { btn.textContent = 'Not enough time (' + sprintMins(sprint) + 'm)'; }
+      else { btn.textContent = 'Activate sprint'; }
 
       if (!isActive && !noTime) {
         btn.addEventListener('click', () => { openMissionBriefing(sprint); });
@@ -1422,8 +1425,8 @@
   /* ── RENDER EVENTS ── */
   function renderEvents() {
     const colT = document.getElementById('col-today'), colN = document.getElementById('col-tmrw');
-    colT.querySelectorAll('.event-block').forEach(el => el.remove());
-    colN.querySelectorAll('.event-block').forEach(el => el.remove());
+    colT.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
+    colN.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
 
     events.forEach(ev => {
       const col = ev.col === 'today' ? colT : colN;
@@ -1435,6 +1438,26 @@
       block.style.height = hPx + 'px';
       block.innerHTML = '<div class="event-name">' + ev.name + '</div>';
       col.appendChild(block);
+    });
+
+    // Draw recovery blocks after each sprint's last event
+    const sprintIds = [...new Set(events.map(e => e.sprintId))];
+    sprintIds.forEach(sid => {
+      const sprint = sprints.find(s => s.id === sid);
+      if (!sprint || !sprint.recoveryMins) return;
+      const sprintEvs = events.filter(e => e.sprintId === sid);
+      if (!sprintEvs.length) return;
+      const lastEv = sprintEvs.reduce((a, b) => (a.startH + a.dur/60 > b.startH + b.dur/60) ? a : b);
+      const recStart = lastEv.startH + lastEv.dur / 60;
+      const recH = (sprint.recoveryMins / 60) * HOUR_PX;
+      const col = (lastEv.col === 'today') ? colT : colN;
+      const rec = document.createElement('div');
+      rec.className = 'recovery-block';
+      rec.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:4px;background:rgba(37,134,183,0.06);border:1px dashed rgba(37,134,183,0.25);z-index:2;display:flex;align-items:center;padding:0 8px;pointer-events:none;';
+      rec.style.top    = (recStart * HOUR_PX + 1) + 'px';
+      rec.style.height = Math.max(recH - 2, 14) + 'px';
+      rec.innerHTML = '<div style="font-size:9px;color:#2586b7;opacity:0.7;letter-spacing:0.05em;text-transform:uppercase;">Recovery · ' + sprint.recoveryMins + 'm</div>';
+      col.appendChild(rec);
     });
   }
 
@@ -1464,6 +1487,7 @@
     const cb = document.getElementById('modal-save-to-lib');
     if (cb) { cb.checked = false; document.getElementById('modal-save-to-lib-label').classList.remove('active'); }
     editingSprintId = null;
+    editingLibrary  = false;
   }
   document.getElementById('open-studio').addEventListener('click', () => openModal(null));
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
@@ -1479,7 +1503,15 @@
     let savedSprint = null;
     const isNew = !editingSprintId;
 
-    if (editingSprintId) {
+    if (editingLibrary && editingSprintId) {
+      // Editing a library preset directly
+      const idx = sprintLibrary.findIndex(s => s.id === editingSprintId);
+      if (idx > -1) { sprintLibrary[idx].name = name; sprintLibrary[idx].tasks = tasksCopy; }
+      editingLibrary = false;
+      save(); closeModal();
+      toast('"' + name + '" updated in Library');
+      return;
+    } else if (editingSprintId) {
       // Editing existing sprint — update in place (today's or library)
       const idx = sprints.findIndex(s => s.id === editingSprintId);
       if (idx > -1) { sprints[idx].name = name; sprints[idx].tasks = tasksCopy; savedSprint = sprints[idx]; }
@@ -1574,6 +1606,33 @@
       btns.append(addBtn, preplanBtn);
       top.append(expandBtn, btns);
 
+      // Edit / Delete row
+      const actionRow = document.createElement('div');
+      actionRow.style.cssText = 'display:flex;gap:6px;margin-top:6px;';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'lib-sprint-add';
+      editBtn.textContent = 'Edit';
+      editBtn.style.flex = '1';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeLibraryPanel();
+        openModalForLibrary(preset);
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'lib-sprint-add';
+      delBtn.textContent = 'Delete';
+      delBtn.style.cssText = 'flex:1;border-color:#4a2020;color:#bf6a6a;';
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sprintLibrary = sprintLibrary.filter(s => s.id !== preset.id);
+        save(); renderLibraryPanel();
+        toast('"' + preset.name + '" removed from library');
+      });
+
+      actionRow.append(editBtn, delBtn);
+
       // Task breakdown hidden by default
       const taskList = document.createElement('div');
       taskList.className = 'lib-sprint-tasks';
@@ -1594,13 +1653,24 @@
         expandBtn.textContent = open ? '▲' : '▼';
       });
 
-      item.append(nameRow, top, taskList);
+      item.append(nameRow, top, actionRow, taskList);
       list.appendChild(item);
     });
   }
 
   document.getElementById('open-library').addEventListener('click', openLibraryPanel);
   document.getElementById('close-library').addEventListener('click', closeLibraryPanel);
+
+  // Open modal to edit a library preset
+  function openModalForLibrary(preset) {
+    editingSprintId = preset.id;
+    editingLibrary  = true;
+    modalTasks = []; modalUid = 0;
+    document.getElementById('modal-tasks').innerHTML = '';
+    document.getElementById('modal-sprint-name').value = preset.name;
+    document.getElementById('modal-overlay').classList.add('open');
+    preset.tasks.forEach(t => addModalRow(t.name, t.dur, t.period, t.type));
+  }
 
   /* ── PREPLAN ── */
   let preplanTarget = null; // the sprint preset being preplanned
