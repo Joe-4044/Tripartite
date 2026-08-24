@@ -187,7 +187,7 @@
 
   .lib-sprint-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
   .lib-sprint-name { font-size: 14.5px; color: var(--text); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .lib-sprint-meta { font-size: 11.5px; color: #7d7d7d; }
+  .lib-sprint-meta { font-size: 11.5px; color: var(--text3); }
 
   .lib-sprint-expand {
     background: none; border: none; color: var(--text3); cursor: pointer;
@@ -198,24 +198,27 @@
 
   .lib-sprint-primary-row { display: flex; gap: 6px; height: 36px; }
   .lib-sprint-add {
-    flex: 1; background: transparent; border: 1px solid #2e2e2e; border-radius: 6px;
-    color: #ddd; font-size: 11px; font-family: inherit;
+    flex: 1; background: transparent; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text2); font-size: 11px; font-family: inherit;
     cursor: pointer; white-space: nowrap; transition: all 0.15s;
     display: flex; align-items: center; justify-content: center;
   }
-  .lib-sprint-add:hover { background: #232323; }
-  .lib-sprint-add.accent { border-color: #2f6fbf; color: #8fc3ff; }
-  .lib-sprint-add.accent:hover { background: #16233a; }
+  .lib-sprint-add:hover { background: var(--card2); }
+  .lib-sprint-add.accent { border-color: #2f6fbf; color: #4a8fd4; }
+  html:not(.light) .lib-sprint-add.accent { color: #8fc3ff; }
+  .lib-sprint-add.accent:hover { background: #16233a; color: #8fc3ff; }
 
   .lib-sprint-secondary-col { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
   .lib-sprint-action {
-    width: 100%; height: 26px; border-radius: 6px; border: 1px solid #2e2e2e;
-    background: transparent; color: #ddd; font-size: 11px; font-family: inherit;
+    width: 100%; height: 26px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text2); font-size: 11px; font-family: inherit;
     cursor: pointer; transition: all 0.15s;
   }
-  .lib-sprint-action:hover { background: #232323; }
-  .lib-sprint-action.danger { border-color: #5a2626; color: #e06666; }
-  .lib-sprint-action.danger:hover { background: #2a1414; }
+  .lib-sprint-action:hover { background: var(--card2); }
+  .lib-sprint-action.danger { border-color: #b04a4a; color: #c0504a; }
+  html:not(.light) .lib-sprint-action.danger { border-color: #5a2626; color: #e06666; }
+  .lib-sprint-action.danger:hover { background: #fbe8e8; }
+  html:not(.light) .lib-sprint-action.danger:hover { background: #2a1414; }
 
   /* Recovery option buttons */
   .recovery-opt {
@@ -350,6 +353,18 @@
 
   .mt-dur { width: 50px; height: 32px; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; font-family: inherit; padding: 0 6px; text-align: center; outline: none; flex-shrink: 0; }
   .mt-dur:focus { border-color: #2586b7; }
+  /* Remove default white spinner arrows, replace with themed ones */
+  .mt-dur::-webkit-outer-spin-button,
+  .mt-dur::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .mt-dur[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  html.light .mt-dur { color-scheme: light; }
+  html:not(.light) .mt-dur { color-scheme: dark; }
   .mt-min { font-size: 11px; color: var(--text3); flex-shrink: 0; }
 
   .mt-ibtn { width: 28px; height: 28px; background: var(--card2); border: 1px solid var(--border); border-radius: 5px; color: var(--text3); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 13px; }
@@ -395,6 +410,7 @@
 
   /* ── MISSION BRIEFING ── */
   .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
+  html.light .confirm-overlay { background: rgba(20,20,15,0.4); }
   .confirm-overlay.open { display: flex; }
 
   .mission-card {
@@ -487,6 +503,12 @@
   }
   .mission-launch:hover { filter: brightness(1.1); }
 
+  html.light .mission-card { background: #ffffff; border-color: #e0ded9; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+  html.light .mission-title { color: #1a1a18; }
+  html.light .mission-desc, html.light .mission-desc-loading { color: #555550; }
+  html.light .mission-bar-track { background: #e6e5e1; }
+  html.light .mission-primetime-val { color: #1a1a18; }
+
   /* Period themes */
   .mission-card.period-wind .mission-num        { color: #af9f82; }
   .mission-card.period-wind .mission-meta-label { color: #d4a574; }
@@ -508,6 +530,22 @@
   .mission-card.period-fallow .mission-bar-fill   { background: #8674d4; }
   .mission-card.period-fallow .mission-primetime-label { color: #b4a2d3; }
   .mission-card.period-fallow .mission-launch     { background: #2a195b; color: #ab9acc; }
+
+  /* Light mode period accent adjustments — darker for contrast on white */
+  html.light .mission-card.period-wind .mission-num          { color: #8a7550; }
+  html.light .mission-card.period-wind .mission-meta-label   { color: #a07840; }
+  html.light .mission-card.period-wind .mission-difficulty   { color: #8a6840; }
+  html.light .mission-card.period-wind .mission-primetime-label { color: #a07840; }
+
+  html.light .mission-card.period-echo .mission-num          { color: #3a8a4e; }
+  html.light .mission-card.period-echo .mission-meta-label   { color: #4a9a52; }
+  html.light .mission-card.period-echo .mission-difficulty   { color: #3a8a4e; }
+  html.light .mission-card.period-echo .mission-primetime-label { color: #4a9a52; }
+
+  html.light .mission-card.period-fallow .mission-num        { color: #5a3f9e; }
+  html.light .mission-card.period-fallow .mission-meta-label { color: #6a4fae; }
+  html.light .mission-card.period-fallow .mission-difficulty { color: #5a3f9e; }
+  html.light .mission-card.period-fallow .mission-primetime-label { color: #6a4fae; }
 
   /* ── CTX MENU ── */
   .ctx-menu { display: none; position: fixed; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px; z-index: 400; min-width: 130px; }
@@ -719,7 +757,7 @@
         <span class="mission-primetime-val" id="mission-primetime">Wind to The Morning</span>
       </div>
     </div>
-    <button class="mission-launch" id="confirm-ok">LAUNCH MISSION</button>
+    <button class="mission-launch" id="confirm-ok">SPRINT</button>
   </div>
 </div>
 
@@ -1504,7 +1542,9 @@
       rec.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:4px;background:rgba(37,134,183,0.06);border:1px dashed rgba(37,134,183,0.25);z-index:2;display:flex;align-items:center;padding:0 8px;pointer-events:none;';
       rec.style.top    = (recStart * HOUR_PX + 1) + 'px';
       rec.style.height = Math.max(recH - 2, 14) + 'px';
-      rec.innerHTML = '<div style="font-size:9px;color:#2586b7;opacity:0.7;letter-spacing:0.05em;text-transform:uppercase;">Recovery · ' + sprint.recoveryMins + 'm</div>';
+      rec.innerHTML = sprint.recoveryMins >= 15
+        ? '<div style="font-size:9px;color:#2586b7;opacity:0.7;letter-spacing:0.05em;text-transform:uppercase;">Recovery · ' + sprint.recoveryMins + 'm</div>'
+        : '';
       col.appendChild(rec);
     });
   }
@@ -1912,7 +1952,9 @@
       rec.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:4px;background:rgba(37,134,183,0.04);border:1px dashed rgba(37,134,183,0.2);z-index:2;display:flex;align-items:center;padding:0 8px;pointer-events:none;';
       rec.style.top = ((p.startH + totalMins/60) * HOUR_PX + 1) + 'px';
       rec.style.height = Math.max(recPx - 2, 14) + 'px';
-      rec.innerHTML = '<div style="font-size:9px;color:#2586b7;opacity:0.6;letter-spacing:0.05em;">RECOVERY</div>';
+      rec.innerHTML = p.recoveryMins >= 15
+        ? '<div style="font-size:9px;color:#2586b7;opacity:0.6;letter-spacing:0.05em;">RECOVERY</div>'
+        : '';
 
       colTmrw.appendChild(block);
       colTmrw.appendChild(rec);
