@@ -793,6 +793,12 @@
   'use strict';
 
   const HOUR_PX = 64;
+  // Tiny visual floor so very short tasks (e.g. a 10-min break) stay visible.
+  // This only nudges packing by a few px, never meaningfully misrepresents time.
+  function packedDurMin(durMin) {
+    const minMinutes = (14 / HOUR_PX) * 60; // ~13.1 min
+    return Math.max(durMin, minMinutes);
+  }
   const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   const SECTIONS = [
@@ -1417,7 +1423,7 @@
     const now = new Date(); let cursor = now.getHours() + now.getMinutes()/60;
     sprint.tasks.forEach(t => {
       events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col: 'today' });
-      cursor += t.dur / 60;
+      cursor += packedDurMin(t.dur) / 60;
     });
     save(); renderSprints(); renderEvents(); toast('"' + sprint.name + '" — mission launched!'); pendingSprintId = null;
   });
@@ -1436,7 +1442,8 @@
       block.style.top    = (ev.startH * HOUR_PX + 1) + 'px';
       const hPx = Math.max((ev.dur/60)*HOUR_PX - 2, 14);
       block.style.height = hPx + 'px';
-      block.innerHTML = '<div class="event-name">' + ev.name + '</div>';
+      // Tasks under 30 minutes show no text — just the colored block
+      block.innerHTML = ev.dur >= 30 ? '<div class="event-name">' + ev.name + '</div>' : '';
       col.appendChild(block);
     });
 
@@ -1448,7 +1455,7 @@
       const sprintEvs = events.filter(e => e.sprintId === sid);
       if (!sprintEvs.length) return;
       const lastEv = sprintEvs.reduce((a, b) => (a.startH + a.dur/60 > b.startH + b.dur/60) ? a : b);
-      const recStart = lastEv.startH + lastEv.dur / 60;
+      const recStart = lastEv.startH + packedDurMin(lastEv.dur) / 60;
       const recH = (sprint.recoveryMins / 60) * HOUR_PX;
       const col = (lastEv.col === 'today') ? colT : colN;
       const rec = document.createElement('div');
@@ -1468,7 +1475,7 @@
     let cursor = Math.min(...sprintEvents.map(e => e.startH));
     sprintEvents.forEach(ev => {
       ev.startH = cursor;
-      cursor += ev.dur / 60;
+      cursor += packedDurMin(ev.dur) / 60;
     });
   }
 
