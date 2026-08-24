@@ -1460,7 +1460,7 @@
         block.dataset.id = ev.id;
         block.style.top    = topPx + 'px';
         block.style.height = hPx + 'px';
-        block.innerHTML = ev.dur >= 30 ? '<div class="event-name">' + ev.name + '</div>' : '';
+        block.innerHTML = ev.dur >= 15 ? '<div class="event-name">' + ev.name + '</div>' : '';
         col.appendChild(block);
 
         prevBottomPx = topPx + hPx;
