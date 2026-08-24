@@ -297,7 +297,7 @@
   .now-line::after  { content: ''; position: absolute; left: 0; right: 0; top: -1px; height: 2px; background: var(--now); }
 
   /* Event blocks on calendar */
-  .event-block { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 4px 8px; font-size: 11px; overflow: hidden; cursor: default; z-index: 3; border: 1px solid transparent; user-select: none; }
+  .event-block { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 2px 7px; font-size: 10.5px; overflow: hidden; cursor: default; z-index: 3; border: 1px solid transparent; user-select: none; line-height: 1.15; }
   .event-block:active { cursor: grabbing; }
   .event-block.hb     { background: var(--hb-bg);     color: var(--hb-text);     border-color: var(--hb-br);     }
   .event-block.anchor-wind   { background: var(--wind-bg);   color: var(--wind-text);   border-color: var(--wind-br);   }
@@ -306,7 +306,7 @@
   .event-block.med    { background: var(--med-bg);    color: var(--med-text);    border-color: var(--med-br);    }
   .event-block.low    { background: var(--low-bg);    color: var(--low-text);    border-color: var(--low-br);    }
   .event-block.brk    { background: var(--card); color: var(--text3); border: 1px dashed var(--border); }
-  .event-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+  .event-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; font-size: 10.5px; }
 
   /* ── MODAL ── */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100; align-items: center; justify-content: center; padding: 24px; }
@@ -793,11 +793,6 @@
   'use strict';
 
   const HOUR_PX = 64;
-  const MIN_BLOCK_PX = 40; // minimum visual height for any block
-  function effectiveDurMin(durMin) {
-    const minMinutes = (MIN_BLOCK_PX / HOUR_PX) * 60;
-    return Math.max(durMin, minMinutes);
-  }
   const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   const SECTIONS = [
@@ -1422,7 +1417,7 @@
     const now = new Date(); let cursor = now.getHours() + now.getMinutes()/60;
     sprint.tasks.forEach(t => {
       events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col: 'today' });
-      cursor += effectiveDurMin(t.dur) / 60;
+      cursor += t.dur / 60;
     });
     save(); renderSprints(); renderEvents(); toast('"' + sprint.name + '" — mission launched!'); pendingSprintId = null;
   });
@@ -1439,7 +1434,7 @@
       block.className = 'event-block ' + eventClass(ev.period, ev.type);
       block.dataset.id = ev.id;
       block.style.top    = (ev.startH * HOUR_PX + 1) + 'px';
-      const hPx = (effectiveDurMin(ev.dur)/60)*HOUR_PX - 2;
+      const hPx = Math.max((ev.dur/60)*HOUR_PX - 2, 14);
       block.style.height = hPx + 'px';
       block.innerHTML = '<div class="event-name">' + ev.name + '</div>';
       col.appendChild(block);
@@ -1453,7 +1448,7 @@
       const sprintEvs = events.filter(e => e.sprintId === sid);
       if (!sprintEvs.length) return;
       const lastEv = sprintEvs.reduce((a, b) => (a.startH + a.dur/60 > b.startH + b.dur/60) ? a : b);
-      const recStart = lastEv.startH + effectiveDurMin(lastEv.dur) / 60;
+      const recStart = lastEv.startH + lastEv.dur / 60;
       const recH = (sprint.recoveryMins / 60) * HOUR_PX;
       const col = (lastEv.col === 'today') ? colT : colN;
       const rec = document.createElement('div');
@@ -1473,7 +1468,7 @@
     let cursor = Math.min(...sprintEvents.map(e => e.startH));
     sprintEvents.forEach(ev => {
       ev.startH = cursor;
-      cursor += effectiveDurMin(ev.dur) / 60;
+      cursor += ev.dur / 60;
     });
   }
 
