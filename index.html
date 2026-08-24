@@ -31,10 +31,17 @@
 
   // Expose sync functions to global scope for the main script
   window._fsReady = false;
-  window._fsIgnoreNext = false; // prevent echo when we write
+  window._fsIgnoreNext = false;       // prevent echo when we write
+  window._fsInitialSyncDone = false;  // true once we've received the FIRST real snapshot
+  window._fsPendingPush = null;       // holds the latest local save() attempted before sync completed
 
-  // Push local state to Firestore
+  // Push local state to Firestore — blocked until initial sync completes,
+  // to avoid overwriting fresher remote data with stale local data on load.
   window.fsPush = async function(data) {
+    if (!window._fsInitialSyncDone) {
+      window._fsPendingPush = data; // remember the latest attempt, flush once ready
+      return;
+    }
     try {
       window._fsIgnoreNext = true;
       await setDoc(DATA_DOC, data, { merge: true });
@@ -43,13 +50,32 @@
 
   // Listen for remote changes and apply them
   onSnapshot(DATA_DOC, (snap) => {
-    if (!snap.exists()) return;
-    if (window._fsIgnoreNext) { window._fsIgnoreNext = false; return; }
-    const d = snap.data();
-    if (window._fsApply) window._fsApply(d);
+    const isFirstSync    = !window._fsInitialSyncDone;
+    const hadRemoteData  = snap.exists();
+
+    if (hadRemoteData && !window._fsIgnoreNext) {
+      const d = snap.data();
+      if (window._fsApply) window._fsApply(d);
+    }
+    if (window._fsIgnoreNext) window._fsIgnoreNext = false;
+
+    if (isFirstSync) {
+      window._fsInitialSyncDone = true;
+      if (hadRemoteData) {
+        // Remote already had data — it's authoritative. Drop any stale
+        // pre-sync local push so it can't overwrite what we just applied.
+        window._fsPendingPush = null;
+      } else if (window._fsPendingPush) {
+        // No remote doc existed yet (brand new setup) — seed it with local state.
+        const pending = window._fsPendingPush;
+        window._fsPendingPush = null;
+        window.fsPush(pending);
+      }
+      if (window._fsOnSynced) window._fsOnSynced();
+    }
   });
 
-  // Signal app that Firebase is ready
+  // Signal app that Firebase module itself has loaded (not that data has synced)
   window._fsReady = true;
   if (window._fsOnReady) window._fsOnReady();
 </script>
@@ -1362,17 +1388,32 @@
   }
 
   async function generateMissionDesc(sprint) {
-    const taskList = sprint.tasks.map(t => t.name + ' (' + t.dur + 'min, ' + t.type + ')').join(', ');
+    const anchorTasks = sprint.tasks.filter(t => t.type === 'anchor' || t.type === 'hb').map(t => t.name);
+    const restTasks    = sprint.tasks.filter(t => t.type !== 'anchor' && t.type !== 'hb').map(t => t.name);
+    const anchorList = anchorTasks.join(', ') || 'none';
+    const restList    = restTasks.join(', ') || 'none';
+
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-6',
-          max_tokens: 100,
+          max_tokens: 80,
           messages: [{
             role: 'user',
-            content: 'Write a 2-sentence mission briefing for a daily planning sprint called "' + sprint.name + '" with these tasks: ' + taskList + '. Make it feel like a video game mission description — punchy, energetic, specific to the tasks. No quotes, no labels, just the description.'
+            content: 'Write exactly 2 plain sentences describing a daily planning sprint called "' + sprint.name + '".\n\n' +
+              'Anchor tasks (the load-bearing ones): ' + anchorList + '\n' +
+              'Other tasks: ' + restList + '\n\n' +
+              'Rules — follow strictly:\n' +
+              '- Sentence 1: state which tasks are the anchors and why they hold the sprint together, in plain factual language.\n' +
+              '- Sentence 2: state what the remaining tasks are, briefly.\n' +
+              '- No direct address to the reader (no "you", no "operative", no titles).\n' +
+              '- No more than one image or metaphor total across both sentences — plain description is preferred over any metaphor.\n' +
+              '- No exclamation points, no hype words (avoid: crush, dominate, lock in, warrior, mission-critical, clock, conquer).\n' +
+              '- No invented urgency or stakes — do not claim to know why this matters to the person.\n' +
+              '- Keep it understated, like a status readout, not a pep talk.\n\n' +
+              'Output only the 2 sentences, nothing else.'
           }]
         })
       });
@@ -1384,9 +1425,17 @@
   }
 
   function fallbackDesc(sprint) {
-    const diff  = calcDifficulty(sprint.tasks);
+    const anchorTasks = sprint.tasks.filter(t => t.type === 'anchor' || t.type === 'hb').map(t => t.name);
+    const restTasks    = sprint.tasks.filter(t => t.type !== 'anchor' && t.type !== 'hb').map(t => t.name);
+    if (anchorTasks.length && restTasks.length) {
+      return anchorTasks.join(' and ') + ' hold this sprint together — the rest follows around them. ' +
+        restTasks.join(', ') + ' round it out.';
+    }
+    if (anchorTasks.length) {
+      return anchorTasks.join(' and ') + ' make up this sprint. Complete these and the sprint holds.';
+    }
     const total = sprintMins(sprint);
-    return sprint.tasks.length + ' tasks, ' + total + ' minutes. ' + (diff.label === 'BRUTAL' ? 'This one demands everything.' : diff.label === 'HARD' ? 'Expect resistance — push through.' : diff.label === 'MODERATE' ? 'A solid mix. Stay locked in.' : 'Light work. Build your momentum.');
+    return sprint.tasks.length + ' tasks, ' + total + ' minutes, no single anchor.';
   }
 
   async function openMissionBriefing(sprint) {
