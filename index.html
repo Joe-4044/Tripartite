@@ -297,7 +297,7 @@
   .now-line::after  { content: ''; position: absolute; left: 0; right: 0; top: -1px; height: 2px; background: var(--now); }
 
   /* Event blocks on calendar */
-  .event-block { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 4px 8px; font-size: 11px; overflow: hidden; cursor: default; z-index: 3; border: 1px solid transparent; user-select: none; margin-bottom: 0; }
+  .event-block { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 0 8px; font-size: 11px; overflow: hidden; cursor: default; z-index: 3; border: 1px solid transparent; user-select: none; display: flex; align-items: center; }
   .event-block:active { cursor: grabbing; }
   .event-block.hb     { background: var(--hb-bg);     color: var(--hb-text);     border-color: var(--hb-br);     }
   .event-block.anchor-wind   { background: var(--wind-bg);   color: var(--wind-text);   border-color: var(--wind-br);   }
@@ -1434,8 +1434,10 @@
       block.className = 'event-block ' + eventClass(ev.period, ev.type);
       block.dataset.id = ev.id;
       block.style.top    = (ev.startH * HOUR_PX + 1) + 'px';
-      const hPx = Math.max((ev.dur/60)*HOUR_PX - 2, 20);
+      const hPx = Math.max((ev.dur/60)*HOUR_PX - 2, 28);
       block.style.height = hPx + 'px';
+      block.style.display = 'flex';
+      block.style.alignItems = 'center';
       block.innerHTML = '<div class="event-name">' + ev.name + '</div>';
       col.appendChild(block);
     });
