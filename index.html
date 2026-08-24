@@ -410,7 +410,6 @@
 
   /* ── MISSION BRIEFING ── */
   .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
-  html.light .confirm-overlay { background: rgba(20,20,15,0.4); }
   .confirm-overlay.open { display: flex; }
 
   .mission-card {
@@ -503,11 +502,6 @@
   }
   .mission-launch:hover { filter: brightness(1.1); }
 
-  html.light .mission-card { background: #ffffff; border-color: #e0ded9; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
-  html.light .mission-title { color: #1a1a18; }
-  html.light .mission-desc, html.light .mission-desc-loading { color: #555550; }
-  html.light .mission-bar-track { background: #e6e5e1; }
-  html.light .mission-primetime-val { color: #1a1a18; }
 
   /* Period themes */
   .mission-card.period-wind .mission-num        { color: #af9f82; }
@@ -530,27 +524,6 @@
   .mission-card.period-fallow .mission-bar-fill   { background: #8674d4; }
   .mission-card.period-fallow .mission-primetime-label { color: #b4a2d3; }
   .mission-card.period-fallow .mission-launch     { background: #2a195b; color: #ab9acc; }
-
-  /* Light mode period accent adjustments — darker for contrast on white */
-  html.light .mission-card.period-wind .mission-num          { color: #8a7550; }
-  html.light .mission-card.period-wind .mission-meta-label   { color: #a07840; }
-  html.light .mission-card.period-wind .mission-difficulty   { color: #8a6840; }
-  html.light .mission-card.period-wind .mission-primetime-label { color: #a07840; }
-
-  html.light .mission-card.period-echo .mission-num          { color: #3a8a4e; }
-  html.light .mission-card.period-echo .mission-meta-label   { color: #4a9a52; }
-  html.light .mission-card.period-echo .mission-difficulty   { color: #3a8a4e; }
-  html.light .mission-card.period-echo .mission-primetime-label { color: #4a9a52; }
-
-  html.light .mission-card.period-fallow .mission-num        { color: #5a3f9e; }
-  html.light .mission-card.period-fallow .mission-meta-label { color: #6a4fae; }
-  html.light .mission-card.period-fallow .mission-difficulty { color: #5a3f9e; }
-  html.light .mission-card.period-fallow .mission-primetime-label { color: #6a4fae; }
-
-  /* Light mode launch buttons — softer, less saturated */
-  html.light .mission-card.period-wind .mission-launch   { background: #e8dcc8; color: #6b5738; }
-  html.light .mission-card.period-echo .mission-launch   { background: #dcefe0; color: #2f6b3e; }
-  html.light .mission-card.period-fallow .mission-launch { background: #e3ddf2; color: #4a3a80; }
 
   /* ── CTX MENU ── */
   .ctx-menu { display: none; position: fixed; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px; z-index: 400; min-width: 130px; }
