@@ -180,20 +180,42 @@
 
   .lib-sprint-item {
     display: flex; flex-direction: column;
-    padding: 12px 14px; background: var(--card); border: 1px solid var(--border);
-    border-radius: 10px; margin-bottom: 8px;
-    transition: border-color 0.15s; gap: 10px;
+    padding: 12px 14px 14px; background: #1c1c1c; border: none;
+    border-radius: 10px; margin-bottom: 8px; gap: 8px;
   }
-  .lib-sprint-item:hover { border-color: #2586b7; }
-  .lib-sprint-name { font-size: 13px; color: var(--text); font-weight: 600; }
-  .lib-sprint-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  html.light .lib-sprint-item { background: var(--card); }
+
+  .lib-sprint-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+  .lib-sprint-name { font-size: 14.5px; color: var(--text); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lib-sprint-meta { font-size: 11.5px; color: #7d7d7d; }
+
+  .lib-sprint-expand {
+    background: none; border: none; color: var(--text3); cursor: pointer;
+    padding: 2px; line-height: 1; flex-shrink: 0; display: flex; align-items: center;
+    transition: transform 0.15s;
+  }
+  .lib-sprint-expand.open { transform: rotate(180deg); }
+
+  .lib-sprint-primary-row { display: flex; gap: 6px; height: 36px; }
   .lib-sprint-add {
-    background: var(--card2); border: 1px solid var(--border); border-radius: 6px;
-    color: var(--text2); font-size: 11px; font-family: inherit;
-    padding: 6px 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
-    transition: all 0.15s;
+    flex: 1; background: transparent; border: 1px solid #2e2e2e; border-radius: 6px;
+    color: #ddd; font-size: 11px; font-family: inherit;
+    cursor: pointer; white-space: nowrap; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
   }
-  .lib-sprint-add:hover { background: #1a1f2a; border-color: #2586b7; color: #6a92af; }
+  .lib-sprint-add:hover { background: #232323; }
+  .lib-sprint-add.accent { border-color: #2f6fbf; color: #8fc3ff; }
+  .lib-sprint-add.accent:hover { background: #16233a; }
+
+  .lib-sprint-secondary-col { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
+  .lib-sprint-action {
+    width: 100%; height: 26px; border-radius: 6px; border: 1px solid #2e2e2e;
+    background: transparent; color: #ddd; font-size: 11px; font-family: inherit;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .lib-sprint-action:hover { background: #232323; }
+  .lib-sprint-action.danger { border-color: #5a2626; color: #e06666; }
+  .lib-sprint-action.danger:hover { background: #2a1414; }
 
   /* Recovery option buttons */
   .recovery-opt {
@@ -204,12 +226,11 @@
   .recovery-opt:hover { border-color: #2586b7; color: #6a92af; }
   .recovery-opt.active { background: #1a1f2a; border-color: #2586b7; color: #6a92af; }
 
-  /* Library card expand */
-  .lib-sprint-tasks { display: none; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+  /* Library card expand — task breakdown */
+  .lib-sprint-tasks { display: none; padding-top: 4px; border-top: 1px solid #2a2a2a; margin-top: 2px; }
   .lib-sprint-tasks.open { display: block; }
   .lib-sprint-task-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 11px; color: var(--text2); }
-  .lib-sprint-expand { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 11px; padding: 0; line-height: 1; }
-  .lib-sprint-expand:hover { color: var(--text2); }
+
 
   /* Save to Library toggle */
   .lib-toggle-row {
@@ -1590,29 +1611,29 @@
       const item = document.createElement('div');
       item.className = 'lib-sprint-item';
 
-      // Name + meta
+      // Name row: title + chevron expand
       const nameRow = document.createElement('div');
+      nameRow.className = 'lib-sprint-name-row';
       const nm = document.createElement('div'); nm.className = 'lib-sprint-name'; nm.textContent = preset.name;
-      const totalMins = preset.tasks.reduce((s,t) => s+t.dur, 0);
-      const meta = document.createElement('div'); meta.className = 'lib-sprint-meta';
-      meta.textContent = preset.tasks.length + ' tasks · ' + totalMins + 'm';
-      nameRow.append(nm, meta);
-
-      // Button row
-      const top = document.createElement('div');
-      top.style.cssText = 'display:flex;align-items:center;gap:6px;';
 
       const expandBtn = document.createElement('button');
       expandBtn.className = 'lib-sprint-expand';
-      expandBtn.textContent = '▼';
       expandBtn.title = 'Show tasks';
+      expandBtn.innerHTML = '<svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-      const btns = document.createElement('div');
-      btns.style.cssText = 'display:flex;gap:6px;flex:1;';
+      nameRow.append(nm, expandBtn);
+
+      // Meta line
+      const totalMins = preset.tasks.reduce((s,t) => s+t.dur, 0);
+      const meta = document.createElement('div'); meta.className = 'lib-sprint-meta';
+      meta.textContent = preset.tasks.length + ' tasks · ' + totalMins + 'm';
+
+      // Primary action row: Add to Today / Preplan Tomorrow
+      const primaryRow = document.createElement('div');
+      primaryRow.className = 'lib-sprint-primary-row';
 
       const addBtn = document.createElement('button');
       addBtn.className = 'lib-sprint-add';
-      addBtn.style.flex = '1';
       addBtn.textContent = '+ Add to Today';
       addBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1625,22 +1646,19 @@
       });
 
       const preplanBtn = document.createElement('button');
-      preplanBtn.className = 'lib-sprint-add';
-      preplanBtn.style.cssText = 'flex:1;border-color:#2a4a6a;color:#6a9abf;';
+      preplanBtn.className = 'lib-sprint-add accent';
       preplanBtn.textContent = 'Preplan Tomorrow';
       preplanBtn.addEventListener('click', (e) => { e.stopPropagation(); openPreplanPicker(preset); });
 
-      btns.append(addBtn, preplanBtn);
-      top.append(expandBtn, btns);
+      primaryRow.append(addBtn, preplanBtn);
 
-      // Edit / Delete row
-      const actionRow = document.createElement('div');
-      actionRow.style.cssText = 'display:flex;gap:6px;margin-top:6px;';
+      // Secondary column: Edit / Delete stacked
+      const secondaryCol = document.createElement('div');
+      secondaryCol.className = 'lib-sprint-secondary-col';
 
       const editBtn = document.createElement('button');
-      editBtn.className = 'lib-sprint-add';
+      editBtn.className = 'lib-sprint-action';
       editBtn.textContent = 'Edit';
-      editBtn.style.flex = '1';
       editBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         closeLibraryPanel();
@@ -1648,9 +1666,8 @@
       });
 
       const delBtn = document.createElement('button');
-      delBtn.className = 'lib-sprint-add';
+      delBtn.className = 'lib-sprint-action danger';
       delBtn.textContent = 'Delete';
-      delBtn.style.cssText = 'flex:1;border-color:#4a2020;color:#bf6a6a;';
       delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         sprintLibrary = sprintLibrary.filter(s => s.id !== preset.id);
@@ -1658,9 +1675,9 @@
         toast('"' + preset.name + '" removed from library');
       });
 
-      actionRow.append(editBtn, delBtn);
+      secondaryCol.append(editBtn, delBtn);
 
-      // Task breakdown hidden by default
+      // Task breakdown, hidden by default
       const taskList = document.createElement('div');
       taskList.className = 'lib-sprint-tasks';
       preset.tasks.forEach(t => {
@@ -1677,10 +1694,10 @@
       expandBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const open = taskList.classList.toggle('open');
-        expandBtn.textContent = open ? '▲' : '▼';
+        expandBtn.classList.toggle('open', open);
       });
 
-      item.append(nameRow, top, actionRow, taskList);
+      item.append(nameRow, meta, primaryRow, secondaryCol, taskList);
       list.appendChild(item);
     });
   }
