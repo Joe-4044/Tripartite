@@ -1136,7 +1136,6 @@
       card.className = 'sprint-card';
       if (completedSprints.some(cs => cs.sprintId === sprint.id)) {
         card.style.opacity = '0.45';
-        card.style.pointerEvents = 'none';
       }
       const head = document.createElement('div'); head.className = 'sprint-card-head';
       const nm = document.createElement('div'); nm.className = 'sprint-card-name'; nm.textContent = sprint.name;
