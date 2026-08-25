@@ -619,7 +619,7 @@
 
   @media (min-width: 700px) {
     .collapse-btn { display: none; }
-    #left-collapsible { max-height: none !important; opacity: 1 !important; pointer-events: all !important; overflow: visible !important; }
+    #left-collapsible { max-height: none !important; opacity: 1 !important; pointer-events: all !important; overflow: hidden !important; }
     .app { flex-direction: row; height: 100vh; overflow: hidden; }
     .left { width: 300px; flex-shrink: 0; border-right: 1px solid var(--border2); border-bottom: none; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
     .right { display: flex; flex: 1; overflow: hidden; flex-direction: column; background: var(--bg); }
@@ -675,7 +675,10 @@
         <div class="section-eyebrow">Today's sprints</div>
         <div id="sprints-list"></div>
         <div class="completed-section" id="completed-section" style="display:none;">
-          <div class="section-eyebrow">Completed</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div class="section-eyebrow" style="margin-bottom:0;">Completed</div>
+            <button id="clear-completed-btn" style="background:none;border:none;color:var(--text3);font-size:10px;letter-spacing:0.05em;cursor:pointer;padding:2px 4px;">Clear all</button>
+          </div>
           <div id="completed-list"></div>
         </div>
       </div>
@@ -1054,8 +1057,9 @@
     preplanned       = [];
 
     // Keep tomorrow's plan markers for calendar rendering (today's column shows activated sprints, tomorrow shows preplan)
-    // Don't clear sprint_preplan_tomorrow - it shows on tomorrow's column
-    // Instead mark it as "consumed" so daily logic knows they're now today's sprints
+    // Now that it has been consumed into today's sprints, clear it — otherwise it
+    // would keep reappearing as tomorrow's ghost plan and get re-pulled every day.
+    saveLS('sprint_preplan_tomorrow', []);
     saveLS('sprint_preplan_consumed', todayStr());
     save();
   }
@@ -1327,7 +1331,7 @@
     list.innerHTML = '';
     if (!completedSprints.length) { section.style.display = 'none'; return; }
     section.style.display = 'block';
-    completedSprints.forEach(cs => {
+    completedSprints.forEach((cs, idx) => {
       const card = document.createElement('div');
       card.className = 'completed-card';
       const head = document.createElement('div');
@@ -1335,14 +1339,35 @@
       const nm = document.createElement('div');
       nm.className = 'completed-card-name';
       nm.textContent = cs.name;
+
+      const right = document.createElement('div');
+      right.style.cssText = 'display:flex;align-items:center;gap:6px;';
       const badge = document.createElement('span');
       badge.className = 'status-badge ' + statusClass(cs.status);
       badge.textContent = statusLabel(cs.status);
-      head.append(nm, badge);
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '×';
+      delBtn.title = 'Remove';
+      delBtn.style.cssText = 'background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;';
+      delBtn.addEventListener('click', () => {
+        completedSprints.splice(idx, 1);
+        save(); renderCompleted();
+      });
+
+      right.append(badge, delBtn);
+      head.append(nm, right);
       card.appendChild(head);
       list.appendChild(card);
     });
   }
+
+  document.getElementById('clear-completed-btn').addEventListener('click', () => {
+    if (!completedSprints.length) return;
+    completedSprints = [];
+    save(); renderCompleted();
+    toast('Completed cleared');
+  });
 
   // Auto-trigger mission briefing for preplanned sprints at scheduled time
   function checkAutoTrigger() {
@@ -2116,21 +2141,29 @@
 
     let changed = false;
 
-    if (d.sprints !== undefined)          { sprints = d.sprints; changed = true; }
-    if (d.events !== undefined)           { events  = d.events;  changed = true; }
-    if (d.sprintLibrary !== undefined)    { sprintLibrary = d.sprintLibrary; changed = true; }
-    if (d.completedSprints !== undefined) { completedSprints = d.completedSprints; changed = true; }
-    if (d.activeSprints !== undefined)    { activeSprints = new Set(d.activeSprints); changed = true; }
-    if (d.doneTasks !== undefined)        { doneTasks = new Set(d.doneTasks); changed = true; }
-    if (d.pausedSprints !== undefined)    { pausedSprints = new Set(d.pausedSprints); changed = true; }
-    if (d.pausedAt !== undefined)         { pausedAt = d.pausedAt; changed = true; }
-    if (d.preplanTomorrow !== undefined)  { saveLS('sprint_preplan_tomorrow', d.preplanTomorrow); }
+    // These aren't tied to "today" — always mirror regardless of date
+    if (d.sprintLibrary !== undefined) { sprintLibrary = d.sprintLibrary; saveLS('sprint_lib_presets', sprintLibrary); buildLibrary(); }
+    if (d.preplanTomorrow !== undefined) { saveLS('sprint_preplan_tomorrow', d.preplanTomorrow); renderPreplanOnCalendar(); }
     if (d.uid !== undefined && d.uid > uid) uid = d.uid;
+
+    // Daily-scoped data only mirrors if the remote save is from the SAME
+    // calendar day as this device. Otherwise a device that hasn't rolled
+    // over to the new day yet (e.g. still open from last night) could
+    // overwrite a freshly-built "today" with yesterday's state.
+    const sameDay = d.date === todayStr();
+    if (sameDay) {
+      if (d.sprints !== undefined)          { sprints = d.sprints; changed = true; }
+      if (d.events !== undefined)           { events  = d.events;  changed = true; }
+      if (d.completedSprints !== undefined) { completedSprints = d.completedSprints; changed = true; }
+      if (d.activeSprints !== undefined)    { activeSprints = new Set(d.activeSprints); changed = true; }
+      if (d.doneTasks !== undefined)        { doneTasks = new Set(d.doneTasks); changed = true; }
+      if (d.pausedSprints !== undefined)    { pausedSprints = new Set(d.pausedSprints); changed = true; }
+      if (d.pausedAt !== undefined)         { pausedAt = d.pausedAt; changed = true; }
+    }
 
     if (changed) {
       saveLS('sprint_sprints',    sprints);
       saveLS('sprint_events',     events);
-      saveLS('sprint_lib_presets',sprintLibrary);
       saveLS('sprint_completed',  completedSprints);
       saveLS('sprint_active',     [...activeSprints]);
       saveLS('sprint_done_tasks', [...doneTasks]);
@@ -2139,8 +2172,6 @@
       renderSprints();
       renderEvents();
       renderCompleted();
-      renderPreplanOnCalendar();
-      buildLibrary();
     }
   };
 
