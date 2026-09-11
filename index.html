@@ -210,6 +210,8 @@
     border-radius: 10px; margin-bottom: 8px; gap: 8px;
   }
   html.light .lib-sprint-item { background: var(--card); }
+  html.light .pill-muted { color: var(--text2); border-color: var(--border); }
+  html.light .pill-muted .task-pill-dur { color: var(--text3); }
 
   .lib-sprint-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
   .lib-sprint-name { font-size: 14.5px; color: var(--text); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -309,6 +311,9 @@
   .pill-low  { background: var(--low-bg);  color: var(--low-text);  border-color: var(--low-br);  }
   /* Break */
   .pill-brk  { background: transparent; color: var(--text3); border: 1px dashed var(--border); }
+  /* Muted — any non-Break pill that isn't the currently-counting task */
+  .pill-muted { background: transparent; color: #636362; border-color: #282828; }
+  .pill-muted .task-pill-dur { color: #acacac; }
 
   .activate-btn { width: 100%; margin-top: 10px; padding: 9px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-family: inherit; font-size: 12px; cursor: pointer; transition: all 0.15s; text-align: center; }
   .activate-btn:hover:not(:disabled) { background: #1a1f2a; border-color: #2586b7; color: #6a92af; }
@@ -349,14 +354,36 @@
   /* Event blocks on calendar */
   .event-block { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 2px 7px; font-size: 10.5px; overflow: hidden; cursor: default; z-index: 3; border: 1px solid transparent; user-select: none; line-height: 1.15; }
   .event-block:active { cursor: grabbing; }
-  .event-block.hb     { background: var(--hb-bg);     color: var(--hb-text);     border-color: var(--hb-br);     }
-  .event-block.anchor-wind   { background: var(--wind-bg);   color: var(--wind-text);   border-color: var(--wind-br);   }
-  .event-block.anchor-echo   { background: var(--echo-bg);   color: var(--echo-text);   border-color: var(--echo-br);   }
-  .event-block.anchor-fallow { background: var(--fallow-bg); color: var(--fallow-text); border-color: var(--fallow-br); }
-  .event-block.med    { background: var(--med-bg);    color: var(--med-text);    border-color: var(--med-br);    }
-  .event-block.low    { background: var(--low-bg);    color: var(--low-text);    border-color: var(--low-br);    }
+  /* Sprint task blocks on the calendar are intentionally one neutral color —
+     the period/type color coding lives in the left-panel task pills instead;
+     keeping the calendar itself monochrome keeps focus on time, not hue.
+     Text sits as a dim accent on the dark block, not full-bright. */
+  .event-block.hb,
+  .event-block.anchor-wind,
+  .event-block.anchor-echo,
+  .event-block.anchor-fallow,
+  .event-block.med,
+  .event-block.low { background: var(--card2); color: #898989; border-color: var(--border); }
+  html.light .event-block.hb,
+  html.light .event-block.anchor-wind,
+  html.light .event-block.anchor-echo,
+  html.light .event-block.anchor-fallow,
+  html.light .event-block.med,
+  html.light .event-block.low { color: var(--text2); }
   .event-block.brk    { background: var(--card); color: var(--text3); border: 1px dashed var(--border); }
+  .event-block.evt    { background: #1e2530; color: #9db3c9; border-color: #2c3f52; }
   .event-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; font-size: 10.5px; }
+
+  /* Drag-to-create ghost preview */
+  .drag-ghost {
+    position: absolute; left: 4px; right: 4px; z-index: 5;
+    border-radius: 6px; border: 1.5px dashed #2586b7; background: rgba(37,134,183,0.14);
+    pointer-events: none;
+  }
+  .drag-ghost-label {
+    font-size: 10.5px; color: #6a92af; font-weight: 500; padding: 3px 7px; white-space: nowrap; overflow: hidden;
+  }
+  .cal-col.dragging-create { cursor: crosshair; }
 
   /* ── MODAL ── */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100; align-items: center; justify-content: center; padding: 24px; }
@@ -367,6 +394,31 @@
   .modal-title-input { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-size: 20px; font-weight: 500; font-family: inherit; padding: 0 2px 11px; outline: none; }
   .modal-title-input::placeholder { color: var(--text4); }
   .modal-title-input:focus { border-bottom-color: #2586b7; }
+
+  /* Quick-create Sprint/Event tabs */
+  .qc-tabs { display: flex; gap: 16px; align-items: center; }
+  .qc-tab {
+    background: none; border: none; font-family: inherit; font-size: 13px;
+    color: var(--text3); cursor: pointer; padding: 8px 15px; border-radius: 15px;
+  }
+  .qc-tab.active { background: #1a1f2a; color: #6a92af; }
+  html.light .qc-tab.active { background: #e8f0f8; color: #2a6090; }
+
+  /* Quick-create date/time row */
+  .qc-datetime {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text2);
+  }
+
+  /* Event description box (Event mode) */
+  .qc-desc {
+    width: 100%; min-height: 90px; resize: vertical;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: inherit; font-size: 13px; padding: 11px 12px;
+    outline: none;
+  }
+  .qc-desc:focus { border-color: #2586b7; }
+  .qc-desc::placeholder { color: var(--text3); }
 
   .modal-tasks { display: flex; flex-direction: column; gap: 7px; overflow-y: auto; max-height: calc(90vh - 230px); scrollbar-width: thin; scrollbar-color: var(--border) transparent; flex-shrink: 1; }
 
@@ -603,8 +655,6 @@
     .modal-left { border-right: none; border-bottom: 1px solid var(--border2); max-height: 55vh; overflow-y: auto; }
     .modal-right { max-height: 30vh; overflow-y: auto; }
     .modal-tasks { max-height: 28vh; }
-    #preplan-overlay { padding: 0; align-items: flex-end; }
-    #preplan-overlay > div { border-radius: 16px 16px 0 0 !important; width: 100% !important; max-width: 100% !important; }
   }
 
   .collapse-btn {
@@ -724,12 +774,33 @@
   </div>
 </div>
 
-<!-- SPRINT STUDIO -->
+<!-- SPRINT STUDIO / QUICK CREATE -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <div class="modal-left">
       <input class="modal-title-input" id="modal-sprint-name" type="text" placeholder="Name this sprint" />
+
+      <!-- Sprint / Event tabs — only shown when created via drag-to-create -->
+      <div class="qc-tabs" id="qc-tabs" style="display:none;">
+        <button class="qc-tab active" id="qc-tab-sprint" data-mode="sprint">Sprint</button>
+        <button class="qc-tab" id="qc-tab-event" data-mode="event">Event</button>
+      </div>
+
+      <!-- Date / time row — only shown when created via drag-to-create -->
+      <div class="qc-datetime" id="qc-datetime" style="display:none;">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:0.6;">
+          <circle cx="7.5" cy="7.5" r="6.3" stroke="currentColor" stroke-width="1.1"/>
+          <path d="M7.5 4V7.5L9.8 9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+        </svg>
+        <span id="qc-date-label">Monday, September 7</span>
+        <span id="qc-time-label" style="margin-left:8px;color:var(--text3);"></span>
+      </div>
+
       <div class="modal-tasks" id="modal-tasks"></div>
+
+      <!-- Event description — only shown in Event mode -->
+      <textarea class="qc-desc" id="qc-desc" placeholder="Add description" style="display:none;"></textarea>
+
       <button class="modal-add-btn" id="modal-add-task">+ Add task</button>
       <div class="modal-actions">
         <label class="lib-toggle-row" id="modal-save-to-lib-label">
@@ -743,7 +814,7 @@
         <button class="modal-cancel" id="modal-cancel">Cancel</button>
       </div>
     </div>
-    <div class="modal-right">
+    <div class="modal-right" id="modal-right">
       <div class="lib-label">From your library</div>
       <div id="lib-list"></div>
     </div>
@@ -768,6 +839,10 @@
         <span class="mission-primetime-label">Prime time</span>
         <span class="mission-primetime-val" id="mission-primetime">Wind to The Morning</span>
       </div>
+      <div class="mission-meta-row" style="margin-top:4px;">
+        <span class="mission-primetime-label">Ends at</span>
+        <span class="mission-primetime-val" id="mission-endtime">—</span>
+      </div>
     </div>
     <button class="mission-launch" id="confirm-ok">SPRINT</button>
   </div>
@@ -776,23 +851,7 @@
 <!-- CTX MENU -->
 <div class="ctx-menu" id="ctx-menu">
   <div class="ctx-item" id="ctx-edit">Edit sprint</div>
-  <div class="ctx-item" id="ctx-preplan">Preplan for Tomorrow</div>
   <div class="ctx-item danger" id="ctx-delete">Delete sprint</div>
-</div>
-
-<!-- PREPLAN PROMPT -->
-<div class="modal-overlay" id="preplan-prompt-overlay">
-  <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;width:320px;display:flex;flex-direction:column;gap:16px;">
-    <div>
-      <div style="font-size:11px;letter-spacing:0.1em;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Sprint saved</div>
-      <div style="font-size:16px;font-weight:600;color:var(--text);" id="preplan-prompt-name"></div>
-    </div>
-    <div style="font-size:13px;color:var(--text2);line-height:1.6;">Would you like to preplan this sprint for tomorrow?</div>
-    <div style="display:flex;gap:8px;">
-      <button class="modal-save" id="preplan-prompt-yes" style="background:#1a1f2a;border:1px solid #2586b7;color:#6a92af;">Preplan for Tomorrow</button>
-      <button class="modal-cancel" id="preplan-prompt-no">Not now</button>
-    </div>
-  </div>
 </div>
 
 <!-- DISCREPANCY MODAL -->
@@ -802,7 +861,7 @@
       <div style="font-size:11px;letter-spacing:0.1em;color:#bf6a6a;text-transform:uppercase;margin-bottom:6px;">⚠ Discrepancy</div>
       <div style="font-size:16px;font-weight:600;color:var(--text);" id="discrepancy-name"></div>
     </div>
-    <div style="font-size:13px;color:var(--text2);line-height:1.6;">This sprint would run past midnight. Delete it to rebalance the calendar?</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.6;" id="discrepancy-message">This sprint would run past midnight. Delete it to rebalance the calendar?</div>
     <input type="hidden" id="discrepancy-sprint-id" />
     <div style="display:flex;gap:8px;">
       <button class="modal-save" id="discrepancy-confirm" style="background:#2a1414;border:1px solid #5a2020;color:#e05a4a;">Delete Sprint</button>
@@ -824,40 +883,6 @@
     Calendar
   </button>
 </nav>
-
-<!-- PREPLAN PICKER -->
-<div class="modal-overlay" id="preplan-overlay">
-  <div class="modal" style="max-width:400px;flex-direction:column;">
-    <div style="padding:24px 24px 0;">
-      <div style="font-size:11px;letter-spacing:0.1em;color:var(--text3);text-transform:uppercase;margin-bottom:8px;">Preplan for Tomorrow</div>
-      <div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:4px;" id="preplan-sprint-name">Sprint Name</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:20px;" id="preplan-sprint-meta">5 tasks · 125m</div>
-
-      <div style="margin-bottom:16px;">
-        <label style="font-size:11px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:8px;">Start Time</label>
-        <input type="time" id="preplan-time" style="width:100%;height:40px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:0 12px;outline:none;" />
-      </div>
-
-      <div style="margin-bottom:20px;">
-        <label style="font-size:11px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:8px;">Recovery After Sprint</label>
-        <div style="display:flex;gap:6px;" id="recovery-btns">
-          <button class="recovery-opt" data-val="5">5m</button>
-          <button class="recovery-opt active" data-val="10">10m</button>
-          <button class="recovery-opt" data-val="15">15m</button>
-          <button class="recovery-opt" data-val="20">20m</button>
-        </div>
-        <input type="hidden" id="preplan-recovery" value="10" />
-      </div>
-
-      <div id="preplan-conflict" style="display:none;padding:10px 12px;background:#2a1414;border:1px solid #4a2020;border-radius:8px;color:#e08080;font-size:12px;margin-bottom:16px;"></div>
-    </div>
-
-    <div style="padding:0 24px 24px;display:flex;gap:8px;">
-      <button class="modal-save" id="preplan-confirm">Schedule for Tomorrow</button>
-      <button class="modal-cancel" id="preplan-cancel">Cancel</button>
-    </div>
-  </div>
-</div>
 
 <script>
 (function () {
@@ -919,6 +944,7 @@
     if (type === 'anchor') return 'anchor-' + period;
     if (type === 'med')    return 'med';
     if (type === 'low')    return 'low';
+    if (type === 'evt')    return 'evt';
     return 'brk';
   }
 
@@ -969,7 +995,6 @@
   let sprintLibrary    = loadLS('sprint_lib_presets', DEFAULT_SPRINT_LIBRARY); // sprint presets
   // Migration: if library is empty, populate with defaults
   if (!sprintLibrary.length) sprintLibrary = DEFAULT_SPRINT_LIBRARY;
-  let preplanned       = loadLS('sprint_preplan',    []);                    // [{sprintId, startH, recoveryMins}] for tomorrow
   let events           = loadLS('sprint_events',     []);
   let uid              = loadLS('sprint_uid',        200);
   let activeSprints    = new Set(loadLS('sprint_active',    []));
@@ -995,7 +1020,6 @@
     saveLS('sprint_done_tasks', [...doneTasks]);
     saveLS('sprint_completed',  completedSprints);
     saveLS('sprint_lib_presets',sprintLibrary);
-    saveLS('sprint_preplan',    preplanned);
     saveLS('sprint_paused',     [...pausedSprints]);
     saveLS('sprint_paused_at',  pausedAt);
     saveLS('sprint_date',       todayStr());
@@ -1010,19 +1034,17 @@
         doneTasks:        [...doneTasks],
         completedSprints,
         sprintLibrary,
-        preplanned,
         pausedSprints:    [...pausedSprints],
         pausedAt,
         date:             todayStr(),
-        preplanTomorrow:  loadLS('sprint_preplan_tomorrow', []),
       });
     }
   }
 
-  function todayStr() {
-    const d = new Date();
+  function dateStr(d) {
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
+  function todayStr() { return dateStr(new Date()); }
 
   function dailyReset() {
     const lastDate = loadLS('sprint_date', null);
@@ -1037,30 +1059,29 @@
       completedSprints.push({ sprintId, name: sprint.name, status, tasks: sprint.tasks });
     });
 
-    // Pull tomorrow's preplanned sprints into today
-    const tomorrowPlan = loadLS('sprint_preplan_tomorrow', []);
-    sprints = tomorrowPlan.map(p => {
-      // Use inline data first, fall back to library lookup
-      const tasks = p.tasks || (sprintLibrary.find(s => s.id === p.sprintId) || {}).tasks;
-      const name = p.name || (sprintLibrary.find(s => s.id === p.sprintId) || {}).name;
-      if (!tasks || !name) return null;
-      return { id: genId(), name, tasks, scheduledH: p.startH, recoveryMins: p.recoveryMins || 10, preplanned: true };
-    }).filter(Boolean);
+    // Promote anything scheduled on tomorrow's column into today — but only
+    // if it was actually meant for today. Each item now carries the real
+    // calendar date it was scheduled for; if that date has already passed
+    // (the app wasn't opened on the day it was due), it's gone, the way a
+    // real calendar wouldn't resurrect a missed appointment on a later day.
+    // Items with no stored date (created before this existed) fall back to
+    // the old always-promote behavior.
+    const resolveScheduled = item => {
+      if (item.col !== 'tmrw') return null;
+      if (!item.date || item.date === today) return { ...item, col: 'today' }; // due now
+      if (item.date < today) return null; // missed its day — expired
+      return item; // still further ahead — keep waiting
+    };
+    sprints = sprints.map(resolveScheduled).filter(Boolean);
+    events  = events.map(resolveScheduled).filter(Boolean);
 
     // Clear daily state
     activeSprints    = new Set();
-    events           = [];
     doneTasks        = new Set();
     completedSprints = [];
     pausedSprints    = new Set();
     pausedAt         = {};
-    preplanned       = [];
 
-    // Keep tomorrow's plan markers for calendar rendering (today's column shows activated sprints, tomorrow shows preplan)
-    // Now that it has been consumed into today's sprints, clear it — otherwise it
-    // would keep reappearing as tomorrow's ghost plan and get re-pulled every day.
-    saveLS('sprint_preplan_tomorrow', []);
-    saveLS('sprint_preplan_consumed', todayStr());
     save();
   }
   function genId() { return 'id_' + (uid++); }
@@ -1129,7 +1150,7 @@
     const list = document.getElementById('sprints-list');
     const ml   = minutesLeft();
     list.innerHTML = '';
-    if (!sprints.length) { list.innerHTML = '<div class="empty-state">No sprints planned yet.<br>Pull from the <strong>Sprint Library</strong> or preplan the night before.</div>'; return; }
+    if (!sprints.length) { list.innerHTML = '<div class="empty-state">No sprints planned yet.<br>Pull from the <strong>Sprint Library</strong> or drag on the calendar to schedule one.</div>'; return; }
 
     sprints.forEach(sprint => {
       const card = document.createElement('div');
@@ -1144,13 +1165,40 @@
       head.append(nm, mb); card.appendChild(head);
 
       const isActiveSprint = activeSprints.has(sprint.id);
+      const isPausedSprint = pausedSprints.has(sprint.id);
+      const nowH = (() => { const n = new Date(); return n.getHours() + n.getMinutes()/60 + n.getSeconds()/3600; })();
+      // While paused, nothing has actually progressed since the pause moment —
+      // use that as the lock frontier instead of the ever-advancing wall clock,
+      // otherwise tasks that were genuinely still in the future when paused
+      // would incorrectly "lock" the longer the pause lasts.
+      const lockNowH = isPausedSprint && pausedAt[sprint.id] !== undefined ? pausedAt[sprint.id] : nowH;
+
+      // A task is "locked" — can't be reordered — once it's done, in progress,
+      // or its scheduled start has already passed. Only tasks that haven't
+      // started yet can be shuffled around each other; touching a locked
+      // task's position would silently rewrite when it actually happened.
+      const sprintEvsAll = events.filter(ev => ev.sprintId === sprint.id);
+      const locked = sprint.tasks.map((t, i) => {
+        const ev = sprintEvsAll[i];
+        if (!isActiveSprint || !ev) return false;
+        return doneTasks.has(ev.id) || ev.startH <= lockNowH;
+      });
+
       sprint.tasks.forEach((t, idx) => {
         const pill = document.createElement('div');
-        const sprintEvs = events.filter(ev => ev.sprintId === sprint.id);
+        const sprintEvs = sprintEvsAll;
         const matchEv   = sprintEvs[idx];
         const isDone    = matchEv && doneTasks.has(matchEv.id);
 
-        pill.className = 'task-pill ' + pillClass(t.period, t.type) + (isDone ? ' done' : '');
+        // A task's priority color is only revealed while its own timer is
+        // actually counting down — everything else in the list stays muted
+        // so the currently-relevant task is the one thing that pops.
+        const isCounting = isActiveSprint && !isPausedSprint && !isDone && !!matchEv &&
+          nowH >= matchEv.startH && nowH < (matchEv.startH + matchEv.dur / 60);
+
+        pill.className = 'task-pill ' +
+          (t.type === 'brk' ? 'pill-brk' : (isCounting ? pillClass(t.period, t.type) : 'pill-muted')) +
+          (isDone ? ' done' : '');
 
         const nameSpan = document.createElement('span');
         nameSpan.textContent = t.name;
@@ -1160,7 +1208,13 @@
 
         const dur = document.createElement('span');
         dur.className = 'task-pill-dur';
-        dur.textContent = t.dur + 'm';
+        if (isCounting) {
+          const remSec = Math.max(0, Math.round(((matchEv.startH + matchEv.dur / 60) - nowH) * 3600));
+          const mm = Math.floor(remSec / 60), ss = remSec % 60;
+          dur.textContent = mm + ':' + String(ss).padStart(2, '0');
+        } else {
+          dur.textContent = t.dur + 'm';
+        }
         right.appendChild(dur);
 
         if (isActiveSprint) {
@@ -1187,14 +1241,14 @@
             save(); renderSprints(); renderEvents();
           }
 
-          if (idx > 0) {
+          if (idx > 0 && !locked[idx] && !locked[idx - 1]) {
             const up = document.createElement('button');
             up.textContent = '↑';
             up.style.cssText = 'background:none;border:none;color:inherit;opacity:0.5;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;';
             up.addEventListener('click', e => { e.stopPropagation(); swapSprintTask(sprint, idx, idx - 1); });
             right.appendChild(up);
           }
-          if (idx < sprint.tasks.length - 1) {
+          if (idx < sprint.tasks.length - 1 && !locked[idx] && !locked[idx + 1]) {
             const dn = document.createElement('button');
             dn.textContent = '↓';
             dn.style.cssText = 'background:none;border:none;color:inherit;opacity:0.5;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;';
@@ -1252,32 +1306,72 @@
   function resumeSprint(sprintId) {
     const now = new Date();
     const nowH = now.getHours() + now.getMinutes() / 60;
-    const pauseH = pausedAt[sprintId] || nowH;
-    const elapsed = nowH - pauseH; // hours lost
+    const pauseH = pausedAt[sprintId] !== undefined ? pausedAt[sprintId] : nowH;
+    const elapsed = Math.max(0, nowH - pauseH); // hours lost
 
-    // Shift all events for this sprint forward by elapsed time
-    events.forEach(ev => {
-      if (ev.sprintId === sprintId) ev.startH += elapsed;
-    });
-
-    // Check discrepancy
-    const sprintEvs = events.filter(ev => ev.sprintId === sprintId);
-    const maxEnd = Math.max(...sprintEvs.map(ev => ev.startH + ev.dur / 60));
-    if (maxEnd > 24) {
-      showDiscrepancy(sprintId);
+    const sprintEvs = events.filter(ev => ev.sprintId === sprintId && ev.col === 'today');
+    if (!sprintEvs.length) {
+      // Nothing to shift — just clear the paused flag
+      pausedSprints.delete(sprintId);
+      delete pausedAt[sprintId];
+      save(); renderSprints(); renderEvents();
       return;
     }
 
+    // Compute the prospective shift WITHOUT mutating anything yet. If the
+    // resume turns out to be invalid, state is left exactly as it was —
+    // still paused, still at its original position — rather than partially
+    // shifted and stuck that way.
+    const maxEnd = Math.max(...sprintEvs.map(ev => ev.startH + elapsed + ev.dur / 60));
+    if (maxEnd > 24) {
+      showDiscrepancy(sprintId, 'This sprint would run past midnight. Delete it to rebalance the calendar?');
+      return;
+    }
+
+    const collisionName = findResumeCollision(sprintId, elapsed);
+    if (collisionName) {
+      showDiscrepancy(sprintId, 'Resuming now would overlap "' + collisionName + '". Delete this sprint to rebalance, or keep it paused.');
+      return;
+    }
+
+    // Both checks passed — safe to commit the shift
+    events.forEach(ev => { if (ev.sprintId === sprintId) ev.startH += elapsed; });
     pausedSprints.delete(sprintId);
     delete pausedAt[sprintId];
     save(); renderSprints(); renderEvents();
     toast('Sprint resumed');
   }
 
-  function showDiscrepancy(sprintId) {
+  // Would resuming this sprint (shifted forward by `elapsed` hours) overlap
+  // any other event already sitting on today's calendar? Checks against the
+  // resumed sprint's own recovery buffer too, since that's calendar-real time.
+  function findResumeCollision(sprintId, elapsed) {
+    const mineEvs = events.filter(ev => ev.sprintId === sprintId && ev.col === 'today');
+    if (!mineEvs.length) return null;
+    const mySprint    = sprints.find(s => s.id === sprintId);
+    const myRecovery  = (mySprint && mySprint.recoveryMins) ? mySprint.recoveryMins / 60 : 0;
+    const mineStart   = Math.min(...mineEvs.map(ev => ev.startH + elapsed));
+    const mineEnd     = Math.max(...mineEvs.map(ev => ev.startH + elapsed + ev.dur / 60)) + myRecovery;
+
+    for (const ev of events) {
+      if (ev.col !== 'today' || ev.sprintId === sprintId) continue;
+      const evStart = ev.startH, evEnd = ev.startH + ev.dur / 60;
+      if (mineStart < evEnd && mineEnd > evStart) {
+        if (ev.sprintId) {
+          const other = sprints.find(s => s.id === ev.sprintId);
+          return other ? other.name : 'another scheduled block';
+        }
+        return ev.name || 'a scheduled event';
+      }
+    }
+    return null;
+  }
+
+  function showDiscrepancy(sprintId, message) {
     const sprint = sprints.find(s => s.id === sprintId);
     const name = sprint ? sprint.name : 'Sprint';
     document.getElementById('discrepancy-name').textContent = name;
+    document.getElementById('discrepancy-message').textContent = message || 'This sprint would run past midnight. Delete it to rebalance the calendar?';
     document.getElementById('discrepancy-sprint-id').value = sprintId;
     document.getElementById('discrepancy-overlay').classList.add('open');
   }
@@ -1309,6 +1403,7 @@
     const now  = new Date();
     const nowH = now.getHours() + now.getMinutes() / 60;
     [...activeSprints].forEach(sprintId => {
+      if (pausedSprints.has(sprintId)) return; // frozen until resumed
       const sprintEvs = events.filter(ev => ev.sprintId === sprintId);
       if (!sprintEvs.length) return;
       const endH = Math.max(...sprintEvs.map(ev => ev.startH + ev.dur / 60));
@@ -1368,14 +1463,17 @@
     toast('Completed cleared');
   });
 
-  // Auto-trigger mission briefing for preplanned sprints at scheduled time
+  // Auto-trigger mission briefing for calendar-scheduled sprints at their scheduled time
   function checkAutoTrigger() {
     const now = new Date();
     const nowH = now.getHours() + now.getMinutes() / 60;
     sprints.forEach(sprint => {
-      if (!sprint.preplanned) return;
       if (activeSprints.has(sprint.id)) return;
-      if (!sprint.scheduledH) return;
+      if (sprint.scheduledH === undefined || sprint.scheduledH === null) return;
+      // Only sprints scheduled on TODAY's column can auto-trigger — a sprint
+      // scheduled for tomorrow shares the same clock hours and must wait
+      // for dailyReset() to promote it before it's eligible.
+      if (sprint.col && sprint.col !== 'today') return;
       // Trigger within a 1-minute window of the scheduled time
       const diff = nowH - sprint.scheduledH;
       if (diff >= 0 && diff < (1/60)) {
@@ -1386,6 +1484,8 @@
 
   setInterval(checkSprintCompletion, 60000);
   setInterval(checkAutoTrigger, 30000);
+  setInterval(() => { if (pausedSprints.size) renderEvents(); }, 15000);
+  setInterval(() => { if ([...activeSprints].some(id => !pausedSprints.has(id))) renderSprints(); }, 1000);
   checkSprintCompletion();
   checkAutoTrigger();
 
@@ -1479,6 +1579,19 @@
     document.getElementById('mission-difficulty').textContent = diff.label;
     document.getElementById('mission-bar').style.width        = (diff.pct * 100) + '%';
     document.getElementById('mission-primetime').textContent  = PRIME_TIMES[periodKey] || PRIME_TIMES.wind;
+
+    // Project when this sprint will actually end, starting from right now —
+    // that's the real anchor whether it's triggered manually or auto-fires
+    // at a scheduled time (both start the clock at "now").
+    const now = new Date();
+    let endH = now.getHours() + now.getMinutes() / 60;
+    sprint.tasks.forEach(t => { endH += packedDurMin(t.dur) / 60; });
+    let endLabel = formatTimePretty(endH);
+    if (sprint.recoveryMins) {
+      endLabel += '  ·  +' + sprint.recoveryMins + 'm rec. → ' + formatTimePretty(endH + sprint.recoveryMins / 60);
+    }
+    document.getElementById('mission-endtime').textContent = endLabel;
+
     document.getElementById('mission-desc').innerHTML         = '<span class="mission-desc-loading">Preparing mission briefing...</span>';
     document.getElementById('confirm-overlay').classList.add('open');
 
@@ -1500,6 +1613,10 @@
     e.stopPropagation();
     ctxTargetId = id;
     const m = document.getElementById('ctx-menu');
+    const editItem = document.getElementById('ctx-edit');
+    const isRunning = activeSprints.has(id);
+    editItem.style.opacity = isRunning ? '0.4' : '';
+    editItem.title = isRunning ? 'Can\'t edit tasks while a sprint is running' : '';
     m.classList.add('open');
     // Temporarily show to measure size
     m.style.top = '0px';
@@ -1513,19 +1630,22 @@
   }
   function closeCtx() { document.getElementById('ctx-menu').classList.remove('open'); }
   document.addEventListener('click', closeCtx);
-  document.getElementById('ctx-edit').addEventListener('click', () => { closeCtx(); const s = sprints.find(x => x.id === ctxTargetId); if (s) openModal(s); });
-  document.getElementById('ctx-preplan').addEventListener('click', () => { closeCtx(); const s = sprints.find(x => x.id === ctxTargetId); if (s) openPreplanPicker({ id: s.id, name: s.name, tasks: s.tasks }); });
+  document.getElementById('ctx-edit').addEventListener('click', () => {
+    closeCtx();
+    const s = sprints.find(x => x.id === ctxTargetId);
+    if (!s) return;
+    if (activeSprints.has(s.id)) {
+      toast('Can\'t edit tasks while a sprint is running — its calendar times would desync. Wait for it to finish.');
+      return;
+    }
+    openModal(s);
+  });
   document.getElementById('ctx-delete').addEventListener('click', () => {
     closeCtx();
     sprints = sprints.filter(s => s.id !== ctxTargetId);
     activeSprints.delete(ctxTargetId);
     events = events.filter(e => e.sprintId !== ctxTargetId);
-
-    // Remove from tomorrow's preplan if it was preplanned
-    const tomorrow = getTomorrowPreplan().filter(p => p.sprintId !== ctxTargetId);
-    saveLS('sprint_preplan_tomorrow', tomorrow);
-
-    save(); renderSprints(); renderEvents(); renderPreplanOnCalendar();
+    save(); renderSprints(); renderEvents();
     toast('Sprint deleted');
   });
 
@@ -1546,22 +1666,45 @@
   /* ── RENDER EVENTS ── */
   const BLOCK_GAP_PX = 2; // strictly enforced minimum gap between stacked blocks
 
+  // How far (in hours) a paused sprint's blocks should visually creep forward
+  // right now, without touching the underlying data. The real shift is only
+  // committed into ev.startH once resumeSprint() actually resumes it.
+  function liveShiftFor(sprintId) {
+    if (!sprintId || !pausedSprints.has(sprintId)) return 0;
+    const pauseH = pausedAt[sprintId];
+    if (pauseH === undefined) return 0;
+    const now = new Date();
+    const nowH = now.getHours() + now.getMinutes() / 60;
+    return Math.max(0, nowH - pauseH);
+  }
+
   function renderEvents() {
     const colT = document.getElementById('col-today'), colN = document.getElementById('col-tmrw');
     colT.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
     colN.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
 
-    // Process each column separately, sorted by start time,
-    // and force each block to start at least BLOCK_GAP_PX after the previous one ends.
+    // sprintId -> the actual clamped, shifted pixel bottom of its last block,
+    // so the recovery block below can anchor to reality instead of recomputing
+    // its own position from raw (unclamped, unshifted) hours.
+    const sprintBlockBottomPx = {};
+    const sprintBlockCol = {};
+
+    // Process each column separately, sorted by effective (live-shifted) start
+    // time, and force each block to start at least BLOCK_GAP_PX after the
+    // previous one ends.
     ['today', 'tmrw'].forEach(colKey => {
       const col = colKey === 'today' ? colT : colN;
-      const colEvents = events.filter(e => e.col === colKey).sort((a, b) => a.startH - b.startH);
+      const colEvents = events
+        .filter(e => e.col === colKey)
+        .map(e => ({ ev: e, shift: liveShiftFor(e.sprintId) }))
+        .sort((a, b) => (a.ev.startH + a.shift) - (b.ev.startH + b.shift));
 
       let prevBottomPx = null;
 
-      colEvents.forEach(ev => {
-        const rawTopPx = ev.startH * HOUR_PX;
-        const rawHPx   = Math.max((ev.dur / 60) * HOUR_PX, 14);
+      colEvents.forEach(({ ev, shift }) => {
+        const effStartH = ev.startH + shift;
+        const rawTopPx  = effStartH * HOUR_PX;
+        const rawHPx    = Math.max((ev.dur / 60) * HOUR_PX, 14);
 
         let topPx = rawTopPx + 1;
         if (prevBottomPx !== null && topPx < prevBottomPx + BLOCK_GAP_PX) {
@@ -1575,28 +1718,31 @@
         block.dataset.id = ev.id;
         block.style.top    = topPx + 'px';
         block.style.height = hPx + 'px';
+        if (shift > 0) block.style.opacity = '0.6'; // visually distinguish a creeping paused block
         block.innerHTML = ev.dur >= 15 ? '<div class="event-name">' + ev.name + '</div>' : '';
         col.appendChild(block);
 
         prevBottomPx = topPx + hPx;
+        if (ev.sprintId) {
+          sprintBlockBottomPx[ev.sprintId] = prevBottomPx;
+          sprintBlockCol[ev.sprintId] = colKey;
+        }
       });
     });
 
-    // Draw recovery blocks after each sprint's last event
-    const sprintIds = [...new Set(events.map(e => e.sprintId))];
-    sprintIds.forEach(sid => {
+    // Draw recovery blocks anchored to the real clamped/shifted bottom of
+    // each sprint's last block — never recomputed from raw hours, so it can
+    // never drift out of sync with what's actually on screen.
+    Object.keys(sprintBlockBottomPx).forEach(sid => {
       const sprint = sprints.find(s => s.id === sid);
       if (!sprint || !sprint.recoveryMins) return;
-      const sprintEvs = events.filter(e => e.sprintId === sid);
-      if (!sprintEvs.length) return;
-      const lastEv = sprintEvs.reduce((a, b) => (a.startH + a.dur/60 > b.startH + b.dur/60) ? a : b);
-      const recStart = lastEv.startH + packedDurMin(lastEv.dur) / 60;
+      const bottomPx = sprintBlockBottomPx[sid];
+      const col = sprintBlockCol[sid] === 'today' ? colT : colN;
       const recH = (sprint.recoveryMins / 60) * HOUR_PX;
-      const col = (lastEv.col === 'today') ? colT : colN;
       const rec = document.createElement('div');
       rec.className = 'recovery-block';
       rec.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:4px;background:rgba(37,134,183,0.06);border:1px dashed rgba(37,134,183,0.25);z-index:2;display:flex;align-items:center;padding:0 8px;pointer-events:none;';
-      rec.style.top    = (recStart * HOUR_PX + 1) + 'px';
+      rec.style.top    = (bottomPx + BLOCK_GAP_PX) + 'px';
       rec.style.height = Math.max(recH - 2, 14) + 'px';
       rec.innerHTML = sprint.recoveryMins >= 15
         ? '<div style="font-size:9px;color:#2586b7;opacity:0.7;letter-spacing:0.05em;text-transform:uppercase;">Recovery · ' + sprint.recoveryMins + 'm</div>'
@@ -1605,19 +1751,147 @@
     });
   }
 
-  // Repack events for a sprint starting from the original activation time
+  // Repack events for a sprint. For an active sprint, anything already done,
+  // in progress, or already past keeps its real startH untouched — only the
+  // not-yet-started tasks get laid out, starting right after the last locked
+  // task ends. This is what makes reordering safe on a running sprint.
   function repackSprintEvents(sprintId) {
     const sprintEvents = events.filter(e => e.sprintId === sprintId);
     if (!sprintEvents.length) return;
-    let cursor = Math.min(...sprintEvents.map(e => e.startH));
-    sprintEvents.forEach(ev => {
-      ev.startH = cursor;
-      cursor += packedDurMin(ev.dur) / 60;
-    });
+
+    if (activeSprints.has(sprintId)) {
+      const now = new Date();
+      const nowH = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+      const isPaused = pausedSprints.has(sprintId);
+      const lockNowH = isPaused && pausedAt[sprintId] !== undefined ? pausedAt[sprintId] : nowH;
+      const isLocked = ev => doneTasks.has(ev.id) || ev.startH <= lockNowH;
+
+      let cursor = null;
+      sprintEvents.forEach(ev => {
+        if (isLocked(ev)) {
+          const end = ev.startH + packedDurMin(ev.dur) / 60;
+          if (cursor === null || end > cursor) cursor = end;
+        }
+      });
+      if (cursor === null) cursor = Math.min(...sprintEvents.map(e => e.startH));
+
+      sprintEvents.forEach(ev => {
+        if (isLocked(ev)) return; // never rewrite what already happened
+        ev.startH = cursor;
+        cursor += packedDurMin(ev.dur) / 60;
+      });
+    } else {
+      let cursor = Math.min(...sprintEvents.map(e => e.startH));
+      sprintEvents.forEach(ev => {
+        ev.startH = cursor;
+        cursor += packedDurMin(ev.dur) / 60;
+      });
+    }
   }
 
   /* ── MODAL ── */
+  let scheduleCtx = null; // {col, startH, endH} — set when the modal was opened via drag-to-create
+  let qcMode = 'sprint';  // 'sprint' | 'event' — only meaningful while scheduleCtx is set
+
+  function resetQuickCreateUI() {
+    scheduleCtx = null;
+    qcMode = 'sprint';
+    document.getElementById('qc-tabs').style.display = 'none';
+    document.getElementById('qc-datetime').style.display = 'none';
+    document.getElementById('qc-desc').style.display = 'none';
+    document.getElementById('qc-desc').value = '';
+    document.getElementById('modal-tasks').style.display = '';
+    document.getElementById('modal-add-task').style.display = '';
+    document.getElementById('modal-right').style.display = '';
+    document.getElementById('modal-save-to-lib-label').style.display = '';
+    document.getElementById('modal-sprint-name').placeholder = 'Name this sprint';
+    document.getElementById('modal-save').textContent = 'Save sprint';
+    document.getElementById('qc-tab-sprint').classList.add('active');
+    document.getElementById('qc-tab-event').classList.remove('active');
+  }
+
+  function formatDatePretty(d) {
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return DAYS_FULL[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
+  }
+  const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  function formatTimePretty(h) {
+    h = ((h % 24) + 24) % 24;
+    let hour = Math.floor(h);
+    const min = Math.round((h - hour) * 60);
+    const ampm = hour >= 12 ? 'pm' : 'am';
+    let hour12 = hour % 12; if (hour12 === 0) hour12 = 12;
+    return hour12 + ':' + String(min).padStart(2,'0') + ampm;
+  }
+
+  function periodForHour(h) {
+    // Matches the same boundaries as SECTIONS: wind 4-11, echo 11-19, fallow 19-4
+    if (h >= SECTIONS[0].hour && h < SECTIONS[1].hour) return 'wind';
+    if (h >= SECTIONS[1].hour && h < SECTIONS[2].hour) return 'echo';
+    return 'fallow';
+  }
+
+  function setQcMode(mode) {
+    qcMode = mode;
+    document.getElementById('qc-tab-sprint').classList.toggle('active', mode === 'sprint');
+    document.getElementById('qc-tab-event').classList.toggle('active', mode === 'event');
+    const isSprint = mode === 'sprint';
+    document.getElementById('modal-tasks').style.display    = isSprint ? '' : 'none';
+    document.getElementById('modal-add-task').style.display = isSprint ? '' : 'none';
+    document.getElementById('modal-right').style.display    = isSprint ? '' : 'none';
+    document.getElementById('modal-save-to-lib-label').style.display = isSprint ? '' : 'none';
+    document.getElementById('qc-desc').style.display        = isSprint ? 'none' : '';
+    document.getElementById('modal-sprint-name').placeholder = isSprint ? 'Name this sprint' : 'Name this Event';
+    document.getElementById('modal-save').textContent        = isSprint ? 'Save Sprint' : 'Save Event';
+    updateQcDatetimeDisplay();
+  }
+
+  // Keeps the date/time row in the quick-create dialog honest: in Sprint
+  // mode it reflects the REAL end time given the current task list (summed
+  // the same way tasks actually get packed on the calendar), not just the
+  // raw range that was dragged — those two can easily disagree once tasks
+  // are added, edited, or removed.
+  function updateQcDatetimeDisplay() {
+    if (!scheduleCtx) return;
+    const label = document.getElementById('qc-time-label');
+    if (qcMode === 'event' || !modalTasks.length) {
+      label.textContent = formatTimePretty(scheduleCtx.startH) + ' – ' + formatTimePretty(scheduleCtx.endH);
+      return;
+    }
+    let cursor = scheduleCtx.startH;
+    modalTasks.forEach(t => { cursor += packedDurMin(t.dur) / 60; });
+    const totalMins = modalTasks.reduce((s, t) => s + t.dur, 0);
+    label.textContent = formatTimePretty(scheduleCtx.startH) + ' – ' + formatTimePretty(cursor) + '  ·  ' + totalMins + 'm total';
+  }
+
+  document.getElementById('qc-tab-sprint').addEventListener('click', () => setQcMode('sprint'));
+  document.getElementById('qc-tab-event').addEventListener('click', () => setQcMode('event'));
+
+  // Opened by dragging (or clicking) an empty stretch of the calendar.
+  function openQuickCreate(ctx) {
+    editingSprintId = null;
+    editingLibrary  = false;
+    modalTasks = []; modalUid = 0;
+    document.getElementById('modal-tasks').innerHTML = '';
+    document.getElementById('modal-sprint-name').value = '';
+
+    scheduleCtx = ctx;
+    document.getElementById('qc-tabs').style.display = 'flex';
+    document.getElementById('qc-datetime').style.display = 'flex';
+
+    const dateForCol = new Date();
+    if (ctx.col === 'tmrw') dateForCol.setDate(dateForCol.getDate() + 1);
+    scheduleCtx.date = dateStr(dateForCol); // the real calendar date this is meant for
+    document.getElementById('qc-date-label').textContent = formatDatePretty(dateForCol);
+
+    setQcMode('sprint'); // also triggers the initial time-label render
+    document.getElementById('modal-overlay').classList.add('open');
+    document.getElementById('modal-sprint-name').focus();
+  }
+
   function openModal(sprint) {
+    resetQuickCreateUI();
     editingSprintId = sprint ? sprint.id : null;
     modalTasks = []; modalUid = 0;
     document.getElementById('modal-tasks').innerHTML = '';
@@ -1632,6 +1906,7 @@
     if (cb) { cb.checked = false; document.getElementById('modal-save-to-lib-label').classList.remove('active'); }
     editingSprintId = null;
     editingLibrary  = false;
+    resetQuickCreateUI();
   }
   document.getElementById('open-studio').addEventListener('click', () => openModal(null));
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
@@ -1640,12 +1915,54 @@
 
   document.getElementById('modal-save').addEventListener('click', () => {
     const name = document.getElementById('modal-sprint-name').value.trim();
+
+    // ── Scheduled save: dialog was opened via drag-to-create ──
+    if (scheduleCtx) {
+      if (!name) { toast('Give this a name first'); return; }
+      const { col, startH, endH, date } = scheduleCtx;
+
+      if (qcMode === 'event') {
+        const dur = Math.max(Math.round((endH - startH) * 60), 15);
+        const desc = document.getElementById('qc-desc').value.trim();
+        events.push({
+          id: genId(), name, dur, startH, col, date,
+          period: periodForHour(startH), type: 'evt',
+          desc: desc || undefined,
+        });
+        save(); renderEvents(); closeModal();
+        toast('"' + name + '" added to ' + (col === 'today' ? "today's" : "tomorrow's") + ' calendar');
+        return;
+      }
+
+      // qcMode === 'sprint'
+      if (!modalTasks.length) { toast('Add at least one task'); return; }
+      const tasksCopy = modalTasks.map(t => ({ id: genId(), name: t.name, dur: t.dur, period: t.period, type: t.type }));
+      const sprint = { id: genId(), name, tasks: tasksCopy, scheduledH: startH, col, date, recoveryMins: 10 };
+      sprints.push(sprint);
+
+      let cursor = startH;
+      tasksCopy.forEach(t => {
+        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col, date });
+        cursor += packedDurMin(t.dur) / 60;
+      });
+
+      // If the scheduled time is now or already past, start it immediately —
+      // otherwise checkAutoTrigger() picks it up once its time arrives.
+      const now = new Date();
+      const nowH = now.getHours() + now.getMinutes() / 60;
+      if (col === 'today' && startH <= nowH) activeSprints.add(sprint.id);
+
+      save(); renderSprints(); renderEvents(); closeModal();
+      toast('"' + name + '" scheduled for ' + formatTimePretty(startH));
+      return;
+    }
+
+    // ── Original Sprint Studio flow (manual, unscheduled) ──
     if (!name) { toast('Give this sprint a name first'); return; }
     if (!modalTasks.length) { toast('Add at least one task'); return; }
     const tasksCopy = modalTasks.map(t => ({ id: genId(), name: t.name, dur: t.dur, period: t.period, type: t.type }));
     const saveToLib = document.getElementById('modal-save-to-lib').checked;
     let savedSprint = null;
-    const isNew = !editingSprintId;
 
     if (editingLibrary && editingSprintId) {
       // Editing a library preset directly
@@ -1677,12 +1994,68 @@
 
     save(); renderSprints(); closeModal();
     document.getElementById('modal-save-to-lib').checked = false;
-
-    // Only offer preplan for newly created sprints
-    if (isNew && savedSprint) {
-      setTimeout(() => { showPreplanPrompt(savedSprint); }, 300);
-    }
   });
+
+  /* ── DRAG TO CREATE ── */
+  function setupDragToCreate() {
+    const colT = document.getElementById('col-today');
+    const colN = document.getElementById('col-tmrw');
+    const SNAP_H = 0.25; // snap to 15-minute increments
+
+    [{ el: colT, key: 'today' }, { el: colN, key: 'tmrw' }].forEach(({ el, key }) => {
+      let dragging = false, startY = 0, startHRaw = 0, ghost = null, moved = false;
+
+      el.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        if (e.target.closest('.event-block, .recovery-block')) return; // don't hijack existing blocks
+        const rect = el.getBoundingClientRect();
+        startY = e.clientY - rect.top;
+        startHRaw = Math.max(0, Math.min(24, startY / HOUR_PX));
+        dragging = true; moved = false;
+        el.classList.add('dragging-create');
+
+        ghost = document.createElement('div');
+        ghost.className = 'drag-ghost';
+        const snapped = Math.round(startHRaw / SNAP_H) * SNAP_H;
+        ghost.style.top = (snapped * HOUR_PX) + 'px';
+        ghost.style.height = (SNAP_H * HOUR_PX) + 'px';
+        ghost.innerHTML = '<div class="drag-ghost-label">' + formatTimePretty(snapped) + '</div>';
+        el.appendChild(ghost);
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging || !ghost) return;
+        const rect = el.getBoundingClientRect();
+        const curY = e.clientY - rect.top;
+        if (Math.abs(curY - startY) > 6) moved = true;
+        const curHRaw = Math.max(0, Math.min(24, curY / HOUR_PX));
+        let a = Math.round(startHRaw / SNAP_H) * SNAP_H;
+        let b = Math.round(curHRaw  / SNAP_H) * SNAP_H;
+        let lo = Math.min(a, b), hi = Math.max(a, b);
+        if (hi - lo < SNAP_H) hi = lo + SNAP_H;
+        ghost.style.top = (lo * HOUR_PX) + 'px';
+        ghost.style.height = ((hi - lo) * HOUR_PX) + 'px';
+        ghost.querySelector('.drag-ghost-label').textContent = formatTimePretty(lo) + ' – ' + formatTimePretty(hi);
+      });
+
+      document.addEventListener('mouseup', (e) => {
+        if (!dragging) return;
+        dragging = false;
+        el.classList.remove('dragging-create');
+        const rect = el.getBoundingClientRect();
+        const curY = e.clientY - rect.top;
+        const curHRaw = Math.max(0, Math.min(24, curY / HOUR_PX));
+        let a = Math.round(startHRaw / SNAP_H) * SNAP_H;
+        let b = Math.round(curHRaw  / SNAP_H) * SNAP_H;
+        let lo = Math.min(a, b), hi = Math.max(a, b);
+        if (!moved) { lo = a; hi = a + 1; } // plain click — default to a 1-hour block
+        if (hi - lo < SNAP_H) hi = lo + SNAP_H;
+        if (ghost) { ghost.remove(); ghost = null; }
+        openQuickCreate({ col: key, startH: lo, endH: hi });
+      });
+    });
+  }
 
   /* ── SPRINT LIBRARY PANEL ── */
   function openLibraryPanel() {
@@ -1724,7 +2097,7 @@
       const meta = document.createElement('div'); meta.className = 'lib-sprint-meta';
       meta.textContent = preset.tasks.length + ' tasks · ' + totalMins + 'm';
 
-      // Primary action row: Add to Today / Preplan Tomorrow
+      // Primary action row: Add to Today
       const primaryRow = document.createElement('div');
       primaryRow.className = 'lib-sprint-primary-row';
 
@@ -1741,12 +2114,7 @@
         toast('"' + preset.name + '" added to today');
       });
 
-      const preplanBtn = document.createElement('button');
-      preplanBtn.className = 'lib-sprint-add accent';
-      preplanBtn.textContent = 'Preplan Tomorrow';
-      preplanBtn.addEventListener('click', (e) => { e.stopPropagation(); openPreplanPicker(preset); });
-
-      primaryRow.append(addBtn, preplanBtn);
+      primaryRow.append(addBtn);
 
       // Secondary column: Edit / Delete stacked
       const secondaryCol = document.createElement('div');
@@ -1812,87 +2180,6 @@
     preset.tasks.forEach(t => addModalRow(t.name, t.dur, t.period, t.type));
   }
 
-  /* ── PREPLAN ── */
-  let preplanTarget = null; // the sprint preset being preplanned
-
-  function openPreplanPicker(preset) {
-    preplanTarget = preset;
-    const totalMins = preset.tasks.reduce((s,t) => s+t.dur, 0);
-    document.getElementById('preplan-sprint-name').textContent = preset.name;
-    document.getElementById('preplan-sprint-meta').textContent = preset.tasks.length + ' tasks · ' + totalMins + 'm';
-    document.getElementById('preplan-conflict').style.display = 'none';
-    const now = new Date();
-    now.setHours(now.getHours() + 1, 0, 0, 0);
-    document.getElementById('preplan-time').value = String(now.getHours()).padStart(2,'0') + ':00';
-    resetRecoveryBtns(10);
-    document.getElementById('preplan-overlay').classList.add('open');
-  }
-
-  function closePreplanPicker() {
-    document.getElementById('preplan-overlay').classList.remove('open');
-    preplanTarget = null;
-  }
-
-  function getTomorrowPreplan() {
-    return loadLS('sprint_preplan_tomorrow', []);
-  }
-
-  function checkPreplanConflict(startH, durationMins, recoveryMins, excludeId) {
-    const endH = startH + durationMins / 60 + recoveryMins / 60;
-    const tomorrow = getTomorrowPreplan();
-    for (const p of tomorrow) {
-      if (p.sprintId === excludeId) continue;
-      const tasks = p.tasks || (sprintLibrary.find(s => s.id === p.sprintId) || {}).tasks;
-      const name  = p.name  || (sprintLibrary.find(s => s.id === p.sprintId) || {}).name || 'Another sprint';
-      if (!tasks) continue;
-      const pDur = tasks.reduce((s,t) => s+t.dur, 0);
-      const pEnd = p.startH + pDur / 60 + p.recoveryMins / 60;
-      if (startH < pEnd && endH > p.startH) {
-        return '"' + name + '" is already scheduled at that time.';
-      }
-    }
-    if (endH > 24) return 'This sprint would run past midnight.';
-    return null;
-  }
-
-  document.getElementById('recovery-btns').addEventListener('click', function(e) {
-    const btn = e.target.closest('.recovery-opt');
-    if (!btn) return;
-    document.querySelectorAll('.recovery-opt').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('preplan-recovery').value = btn.dataset.val;
-  });
-
-  // Reset recovery buttons when picker opens
-  function resetRecoveryBtns(val) {
-    document.querySelectorAll('.recovery-opt').forEach(b => {
-      b.classList.toggle('active', b.dataset.val === String(val));
-    });
-    document.getElementById('preplan-recovery').value = val;
-  }
-
-  /* ── PREPLAN PROMPT MODAL ── */
-  let preplanPromptTarget = null;
-
-  function showPreplanPrompt(sprint) {
-    if (!sprint) return;
-    preplanPromptTarget = sprint;
-    document.getElementById('preplan-prompt-name').textContent = sprint.name;
-    document.getElementById('preplan-prompt-overlay').classList.add('open');
-  }
-
-  document.getElementById('preplan-prompt-yes').addEventListener('click', () => {
-    document.getElementById('preplan-prompt-overlay').classList.remove('open');
-    const target = preplanPromptTarget;
-    preplanPromptTarget = null;
-    if (target) setTimeout(() => openPreplanPickerFromStudio(target), 100);
-  });
-
-  document.getElementById('preplan-prompt-no').addEventListener('click', () => {
-    document.getElementById('preplan-prompt-overlay').classList.remove('open');
-    preplanPromptTarget = null;
-  });
-
   /* ── DISCREPANCY MODAL ── */
   document.getElementById('discrepancy-confirm').addEventListener('click', () => {
     const sprintId = document.getElementById('discrepancy-sprint-id').value;
@@ -1909,119 +2196,6 @@
   document.getElementById('discrepancy-cancel').addEventListener('click', () => {
     document.getElementById('discrepancy-overlay').classList.remove('open');
   });
-
-  document.getElementById('preplan-confirm').addEventListener('click', () => {
-    if (!preplanTarget) return;
-    const target = preplanTarget; // capture before any async/close clears it
-    const timeVal = document.getElementById('preplan-time').value;
-    if (!timeVal) { toast('Pick a start time'); return; }
-    const [hh, mm] = timeVal.split(':').map(Number);
-    const startH = hh + mm / 60;
-    const recoveryMins = parseInt(document.getElementById('preplan-recovery').value);
-    const totalMins = target.tasks.reduce((s,t) => s+t.dur, 0);
-
-    const conflict = checkPreplanConflict(startH, totalMins, recoveryMins, target.id);
-    if (conflict) {
-      const el = document.getElementById('preplan-conflict');
-      el.textContent = conflict;
-      el.style.display = 'block';
-      return;
-    }
-
-    const tomorrow = getTomorrowPreplan();
-    const existing = tomorrow.findIndex(p => p.sprintId === target.id);
-    const entry = { sprintId: target.id, name: target.name, tasks: target.tasks, startH, recoveryMins };
-    if (existing > -1) tomorrow[existing] = entry;
-    else tomorrow.push(entry);
-    tomorrow.sort((a,b) => a.startH - b.startH);
-    saveLS('sprint_preplan_tomorrow', tomorrow);
-
-    // Auto-save to library if not already there
-    const inLib = sprintLibrary.find(s => s.id === target.id || s.name === target.name);
-    if (!inLib) sprintLibrary.push({ id: target.id, name: target.name, tasks: target.tasks });
-
-    // Remove from Today's Sprints
-    sprints = sprints.filter(s => s.id !== target.id);
-
-    renderPreplanOnCalendar();
-    save();
-    renderSprints();
-    closePreplanPicker();
-    closeLibraryPanel();
-    toast('"' + target.name + '" preplanned for tomorrow');
-  });
-
-  document.getElementById('preplan-cancel').addEventListener('click', closePreplanPicker);
-  document.getElementById('preplan-overlay').addEventListener('click', function(e) {
-    if (e.target === this) closePreplanPicker();
-  });
-
-  // Show preplanned sprints on tomorrow's calendar column as ghosted blocks
-  function renderPreplanOnCalendar() {
-    const colTmrw = document.getElementById('col-tmrw');
-    colTmrw.querySelectorAll('.preplan-block').forEach(el => el.remove());
-    const tomorrow = getTomorrowPreplan();
-    tomorrow.forEach(p => {
-      const tasks = p.tasks || (sprintLibrary.find(s => s.id === p.sprintId) || {}).tasks;
-      const sprintName = p.name || (sprintLibrary.find(s => s.id === p.sprintId) || {}).name || 'Sprint';
-      if (!tasks) return;
-      const totalMins = tasks.reduce((s,t) => s+t.dur, 0);
-      const hPx = (totalMins / 60) * HOUR_PX;
-      const recPx = (p.recoveryMins / 60) * HOUR_PX;
-
-      const block = document.createElement('div');
-      block.className = 'preplan-block';
-      block.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:6px;border:1px dashed #2586b7;background:rgba(37,134,183,0.08);z-index:2;padding:4px 8px;cursor:pointer;overflow:hidden;';
-      block.style.top = (p.startH * HOUR_PX + 1) + 'px';
-      block.style.height = Math.max(hPx - 2, 20) + 'px';
-
-      const nameEl = document.createElement('div');
-      nameEl.style.cssText = 'font-size:11px;color:#2586b7;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-      nameEl.textContent = sprintName;
-
-      const cancelEl = document.createElement('div');
-      cancelEl.style.cssText = 'font-size:9px;color:#2586b7;opacity:0.5;margin-top:2px;';
-      cancelEl.textContent = 'tap to cancel preplan';
-
-      block.appendChild(nameEl);
-      if (hPx >= 36) block.appendChild(cancelEl);
-
-      block.addEventListener('click', () => {
-        // Remove from preplan
-        const updated = getTomorrowPreplan().filter(x => x.sprintId !== p.sprintId);
-        saveLS('sprint_preplan_tomorrow', updated);
-
-        // Put back in Today's Sprints if not already there
-        const alreadyToday = sprints.find(s => s.id === p.sprintId || s.name === sprintName);
-        if (!alreadyToday) {
-          sprints.push({ id: p.sprintId, name: sprintName, tasks });
-          save();
-          renderSprints();
-        }
-
-        renderPreplanOnCalendar();
-        toast('"' + sprintName + '" preplan cancelled — back in Today\'s Sprints');
-      });
-
-      const rec = document.createElement('div');
-      rec.className = 'preplan-block';
-      rec.style.cssText = 'position:absolute;left:4px;right:4px;border-radius:4px;background:rgba(37,134,183,0.04);border:1px dashed rgba(37,134,183,0.2);z-index:2;display:flex;align-items:center;padding:0 8px;pointer-events:none;';
-      rec.style.top = ((p.startH + totalMins/60) * HOUR_PX + 1) + 'px';
-      rec.style.height = Math.max(recPx - 2, 14) + 'px';
-      rec.innerHTML = p.recoveryMins >= 15
-        ? '<div style="font-size:9px;color:#2586b7;opacity:0.6;letter-spacing:0.05em;">RECOVERY</div>'
-        : '';
-
-      colTmrw.appendChild(block);
-      colTmrw.appendChild(rec);
-    });
-  }
-
-  // Also expose openPreplanPicker for Sprint Studio save flow
-  function openPreplanPickerFromStudio(sprint) {
-    // Convert sprint to library-like preset format
-    openPreplanPicker({ id: sprint.id, name: sprint.name, tasks: sprint.tasks });
-  }
 
   document.getElementById('modal-save-to-lib-label').addEventListener('click', function(e) {
     e.preventDefault();
@@ -2042,7 +2216,7 @@
     ni.addEventListener('input', () => { task.name = ni.value; });
 
     const di = document.createElement('input'); di.className = 'mt-dur'; di.type = 'number'; di.min = 1; di.max = 480; di.value = dur;
-    di.addEventListener('input', () => { task.dur = parseInt(di.value) || 0; });
+    di.addEventListener('input', () => { task.dur = parseInt(di.value) || 0; updateQcDatetimeDisplay(); });
 
     const ml2 = document.createElement('span'); ml2.className = 'mt-min'; ml2.textContent = 'min';
     const up  = document.createElement('button'); up.className = 'mt-ibtn'; up.textContent = '↑'; up.addEventListener('click', () => moveRow(task.id, -1));
@@ -2057,7 +2231,7 @@
       toast('"' + task.name + '" saved to library');
     });
     const del = document.createElement('button'); del.className = 'mt-ibtn del'; del.textContent = '✕';
-    del.addEventListener('click', () => { modalTasks = modalTasks.filter(t => t.id !== task.id); row.remove(); });
+    del.addEventListener('click', () => { modalTasks = modalTasks.filter(t => t.id !== task.id); row.remove(); updateQcDatetimeDisplay(); });
     top.append(ni, di, ml2, up, dn, saveTask, del);
 
     /* Period row */
@@ -2095,6 +2269,7 @@
     row.append(top, pr, tr2);
     list.appendChild(row);
     list.scrollTop = list.scrollHeight;
+    updateQcDatetimeDisplay();
   }
 
   function refreshTypeBtns(btns, task) {
@@ -2142,7 +2317,6 @@
 
     // These aren't tied to "today" — always mirror regardless of date
     if (d.sprintLibrary !== undefined) { sprintLibrary = d.sprintLibrary; saveLS('sprint_lib_presets', sprintLibrary); buildLibrary(); }
-    if (d.preplanTomorrow !== undefined) { saveLS('sprint_preplan_tomorrow', d.preplanTomorrow); renderPreplanOnCalendar(); }
     if (d.uid !== undefined && d.uid > uid) uid = d.uid;
 
     // Daily-scoped data only mirrors if the remote save is from the SAME
@@ -2189,7 +2363,7 @@
   renderEvents();
   buildLibrary();
   renderCompleted();
-  renderPreplanOnCalendar();
+  setupDragToCreate();
 
   /* ── MOBILE TABS ── */
   (function() {
