@@ -1792,11 +1792,13 @@
   }
 
   /* ── MODAL ── */
-  let scheduleCtx = null; // {col, startH, endH} — set when the modal was opened via drag-to-create
+  let scheduleCtx = null;      // {col, startH, endH} — set only when Save should CREATE a new scheduled sprint/event
+  let qcDatetimeAnchor = null; // {startH, col} — drives the date/time row display; set whenever there's real scheduling info to show, whether creating or editing
   let qcMode = 'sprint';  // 'sprint' | 'event' — only meaningful while scheduleCtx is set
 
   function resetQuickCreateUI() {
     scheduleCtx = null;
+    qcDatetimeAnchor = null;
     qcMode = 'sprint';
     document.getElementById('qc-tabs').style.display = 'none';
     document.getElementById('qc-datetime').style.display = 'none';
@@ -1855,16 +1857,17 @@
   // raw range that was dragged — those two can easily disagree once tasks
   // are added, edited, or removed.
   function updateQcDatetimeDisplay() {
-    if (!scheduleCtx) return;
+    if (!qcDatetimeAnchor) return;
     const label = document.getElementById('qc-time-label');
     if (qcMode === 'event' || !modalTasks.length) {
-      label.textContent = formatTimePretty(scheduleCtx.startH) + ' – ' + formatTimePretty(scheduleCtx.endH);
+      const endH = qcDatetimeAnchor.endH !== undefined ? qcDatetimeAnchor.endH : qcDatetimeAnchor.startH;
+      label.textContent = formatTimePretty(qcDatetimeAnchor.startH) + ' – ' + formatTimePretty(endH);
       return;
     }
-    let cursor = scheduleCtx.startH;
+    let cursor = qcDatetimeAnchor.startH;
     modalTasks.forEach(t => { cursor += packedDurMin(t.dur) / 60; });
     const totalMins = modalTasks.reduce((s, t) => s + t.dur, 0);
-    label.textContent = formatTimePretty(scheduleCtx.startH) + ' – ' + formatTimePretty(cursor) + '  ·  ' + totalMins + 'm total';
+    label.textContent = formatTimePretty(qcDatetimeAnchor.startH) + ' – ' + formatTimePretty(cursor) + '  ·  ' + totalMins + 'm total';
   }
 
   document.getElementById('qc-tab-sprint').addEventListener('click', () => setQcMode('sprint'));
@@ -1879,6 +1882,7 @@
     document.getElementById('modal-sprint-name').value = '';
 
     scheduleCtx = ctx;
+    qcDatetimeAnchor = ctx;
     document.getElementById('qc-tabs').style.display = 'flex';
     document.getElementById('qc-datetime').style.display = 'flex';
 
@@ -1898,8 +1902,22 @@
     modalTasks = []; modalUid = 0;
     document.getElementById('modal-tasks').innerHTML = '';
     document.getElementById('modal-sprint-name').value = sprint ? sprint.name : '';
+
+    // If this sprint has real scheduling info (created via drag-to-create),
+    // show its date/time row read-only — same display as at creation time,
+    // live-updating as tasks are edited — without touching scheduleCtx,
+    // which is reserved for "Save should create a brand-new sprint".
+    if (sprint && sprint.col && sprint.scheduledH !== undefined) {
+      qcDatetimeAnchor = { startH: sprint.scheduledH, col: sprint.col };
+      const dateForLabel = new Date();
+      if (sprint.col === 'tmrw') dateForLabel.setDate(dateForLabel.getDate() + 1);
+      document.getElementById('qc-date-label').textContent = formatDatePretty(dateForLabel);
+      document.getElementById('qc-datetime').style.display = 'flex';
+    }
+
     document.getElementById('modal-overlay').classList.add('open');
     if (sprint) sprint.tasks.forEach(t => addModalRow(t.name, t.dur, t.period, t.type));
+    updateQcDatetimeDisplay();
   }
 
   function closeModal() {
