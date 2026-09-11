@@ -353,6 +353,7 @@
 
   /* Event blocks on calendar */
   .event-block { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 2px 7px; font-size: 10.5px; overflow: hidden; cursor: default; z-index: 3; border: 1px solid transparent; user-select: none; line-height: 1.15; }
+  .event-block.evt { cursor: pointer; }
   .event-block:active { cursor: grabbing; }
   /* Sprint task blocks on the calendar are intentionally one neutral color —
      the period/type color coding lives in the left-panel task pills instead;
@@ -613,7 +614,8 @@
   .ctx-item.danger:hover { background: #2a1414; color: #e05a4a; }
 
   /* ── TOAST ── */
-  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a2a1f; border: 1px solid #2a4a33; color: #6aaf7a; font-size: 12px; padding: 8px 18px; border-radius: 20px; z-index: 300; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1f2a; border: 1px solid #2586b7; color: #6a92af; font-size: 12px; padding: 8px 18px; border-radius: 20px; z-index: 300; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+  html.light .toast { background: #e8f0f8; border-color: #6aaad8; color: #2a6090; }
   .toast.show { opacity: 1; }
 
   .empty-state { padding: 32px 16px; text-align: center; color: var(--text3); font-size: 12px; line-height: 1.7; }
@@ -811,6 +813,7 @@
           <span class="lib-toggle-label">Save to Library (not Today)</span>
           <input type="checkbox" id="modal-save-to-lib" style="display:none;" />
         </label>
+        <button class="modal-cancel" id="modal-delete-event" style="display:none;border-color:#5a2020;color:#e05a4a;">Delete</button>
         <button class="modal-save" id="modal-save">Save sprint</button>
         <button class="modal-cancel" id="modal-cancel">Cancel</button>
       </div>
@@ -1052,13 +1055,15 @@
     const today    = todayStr();
     if (lastDate === today) return; // same day, no reset needed
 
-    // Auto-complete any active sprints that weren't finished
-    [...activeSprints].forEach(sprintId => {
+    // Close out any active sprints that never finished before the day ends —
+    // this must be computed BEFORE clearing daily state below, since that
+    // clear resets completedSprints for the fresh day.
+    const carriedOverCompletions = [...activeSprints].map(sprintId => {
       const sprint = sprints.find(s => s.id === sprintId);
-      if (!sprint) return;
+      if (!sprint) return null;
       const status = calcStatus(sprint);
-      completedSprints.push({ sprintId, name: sprint.name, status, tasks: sprint.tasks });
-    });
+      return { sprintId, name: sprint.name, status, tasks: sprint.tasks };
+    }).filter(Boolean);
 
     // Promote anything scheduled on tomorrow's column into today — but only
     // if it was actually meant for today. Each item now carries the real
@@ -1076,10 +1081,11 @@
     sprints = sprints.map(resolveScheduled).filter(Boolean);
     events  = events.map(resolveScheduled).filter(Boolean);
 
-    // Clear daily state
+    // Clear daily state — the fresh day starts with just the carried-over
+    // closures above, not wiped to empty after they were computed.
     activeSprints    = new Set();
     doneTasks        = new Set();
-    completedSprints = [];
+    completedSprints = carriedOverCompletions;
     pausedSprints    = new Set();
     pausedAt         = {};
 
@@ -1282,7 +1288,7 @@
       }
       card.appendChild(btn);
 
-      if (isActive) {
+      if (isActive && !isCompleted) {
         const pauseBtn = document.createElement('button');
         pauseBtn.className = 'activate-btn';
         pauseBtn.style.marginTop = '5px';
@@ -1475,6 +1481,7 @@
     const nowH = now.getHours() + now.getMinutes() / 60;
     sprints.forEach(sprint => {
       if (activeSprints.has(sprint.id)) return;
+      if (completedSprints.some(cs => cs.sprintId === sprint.id)) return; // already ran and finished — never re-launch it
       if (sprint.scheduledH === undefined || sprint.scheduledH === null) return;
       // Only sprints scheduled on TODAY's column can auto-trigger — a sprint
       // scheduled for tomorrow shares the same clock hours and must wait
@@ -1742,6 +1749,9 @@
         block.style.height = hPx + 'px';
         if (shift > 0) block.style.opacity = '0.6'; // visually distinguish a creeping paused block
         block.innerHTML = ev.dur >= 15 ? '<div class="event-name">' + ev.name + '</div>' : '';
+        if (ev.type === 'evt' && !ev.sprintId) {
+          block.addEventListener('click', (e) => { e.stopPropagation(); openEventEdit(ev); });
+        }
         col.appendChild(block);
 
         prevBottomPx = topPx + hPx;
@@ -1815,6 +1825,7 @@
   let scheduleCtx = null;      // {col, startH, endH} — set only when Save should CREATE a new scheduled sprint/event
   let qcDatetimeAnchor = null; // {startH, col} — drives the date/time row display; set whenever there's real scheduling info to show, whether creating or editing
   let qcStartEditable = false; // true when the start time itself can be changed (editing an existing scheduled sprint)
+  let editingEventId = null;   // set when editing an existing plain calendar Event (not a sprint)
   let qcMode = 'sprint';  // 'sprint' | 'event' — only meaningful while scheduleCtx is set
 
   function hToTimeInputValue(h) {
@@ -1827,6 +1838,7 @@
     scheduleCtx = null;
     qcDatetimeAnchor = null;
     qcStartEditable = false;
+    editingEventId = null;
     qcMode = 'sprint';
     document.getElementById('qc-tabs').style.display = 'none';
     document.getElementById('qc-datetime').style.display = 'none';
@@ -1837,6 +1849,7 @@
     document.getElementById('modal-add-task').style.display = '';
     document.getElementById('modal-right').style.display = '';
     document.getElementById('modal-save-to-lib-label').style.display = '';
+    document.getElementById('modal-delete-event').style.display = 'none';
     document.getElementById('modal-sprint-name').placeholder = 'Name this sprint';
     document.getElementById('modal-save').textContent = 'Save sprint';
     document.getElementById('qc-tab-sprint').classList.add('active');
@@ -1968,6 +1981,42 @@
     updateQcDatetimeDisplay();
   }
 
+  // Opened by clicking an existing plain calendar Event block — lets it be
+  // renamed, moved to a new time, re-described, or deleted, the way any
+  // normal calendar event can be.
+  function openEventEdit(ev) {
+    resetQuickCreateUI();
+    editingEventId = ev.id;
+    qcMode = 'event';
+    document.getElementById('modal-tasks').style.display = 'none';
+    document.getElementById('modal-add-task').style.display = 'none';
+    document.getElementById('modal-right').style.display = 'none';
+    document.getElementById('modal-save-to-lib-label').style.display = 'none';
+    document.getElementById('qc-desc').style.display = '';
+    document.getElementById('qc-desc').value = ev.desc || '';
+    document.getElementById('modal-sprint-name').placeholder = 'Name this Event';
+    document.getElementById('modal-sprint-name').value = ev.name;
+    document.getElementById('modal-save').textContent = 'Save Event';
+    document.getElementById('modal-delete-event').style.display = '';
+
+    qcDatetimeAnchor = { startH: ev.startH, endH: ev.startH + ev.dur / 60, col: ev.col };
+    qcStartEditable = true;
+    const dateForLabel = new Date();
+    if (ev.col === 'tmrw') dateForLabel.setDate(dateForLabel.getDate() + 1);
+    document.getElementById('qc-date-label').textContent = formatDatePretty(dateForLabel);
+    document.getElementById('qc-datetime').style.display = 'flex';
+    updateQcDatetimeDisplay();
+
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  document.getElementById('modal-delete-event').addEventListener('click', () => {
+    if (!editingEventId) return;
+    events = events.filter(ev => ev.id !== editingEventId);
+    save(); renderEvents(); closeModal();
+    toast('Event deleted');
+  });
+
   function closeModal() {
     document.getElementById('modal-overlay').classList.remove('open');
     const cb = document.getElementById('modal-save-to-lib');
@@ -1983,6 +2032,21 @@
 
   document.getElementById('modal-save').addEventListener('click', () => {
     const name = document.getElementById('modal-sprint-name').value.trim();
+
+    // ── Editing an existing plain calendar Event ──
+    if (editingEventId) {
+      if (!name) { toast('Give this a name first'); return; }
+      const ev = events.find(e => e.id === editingEventId);
+      if (ev) {
+        ev.name = name;
+        ev.desc = document.getElementById('qc-desc').value.trim() || undefined;
+        if (qcDatetimeAnchor) ev.startH = qcDatetimeAnchor.startH;
+        ev.period = periodForHour(ev.startH);
+      }
+      save(); renderEvents(); closeModal();
+      toast('"' + name + '" updated');
+      return;
+    }
 
     // ── Scheduled save: dialog was opened via drag-to-create ──
     if (scheduleCtx) {
@@ -2016,9 +2080,12 @@
 
       // If the scheduled time is now or already past, start it immediately —
       // otherwise checkAutoTrigger() picks it up once its time arrives.
+      // Don't auto-activate if it would run past midnight, though — that
+      // matches the "Not enough time" guard used everywhere else; it still
+      // gets created and scheduled, just not force-started.
       const now = new Date();
       const nowH = now.getHours() + now.getMinutes() / 60;
-      if (col === 'today' && startH <= nowH) activeSprints.add(sprint.id);
+      if (col === 'today' && startH <= nowH && cursor <= 24) activeSprints.add(sprint.id);
 
       save(); renderSprints(); renderEvents(); closeModal();
       toast('"' + name + '" scheduled for ' + formatTimePretty(startH));
