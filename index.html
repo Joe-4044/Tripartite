@@ -1265,16 +1265,18 @@
       const isActive    = activeSprints.has(sprint.id);
       const isPaused    = pausedSprints.has(sprint.id);
       const isCompleted = completedSprints.some(cs => cs.sprintId === sprint.id);
-      const noTime      = !isActive && !isCompleted && sprintMins(sprint) > ml;
+      const isFuture    = sprint.col === 'tmrw'; // scheduled for tomorrow — not startable today
+      const noTime      = !isActive && !isCompleted && !isFuture && sprintMins(sprint) > ml;
       const btn = document.createElement('button');
       btn.className = 'activate-btn' + (isActive && !isPaused ? ' active' : '');
-      btn.disabled  = isActive || noTime || isCompleted;
+      btn.disabled  = isActive || noTime || isCompleted || isFuture;
       if (isCompleted) { btn.style.opacity = '0.4'; btn.textContent = 'Completed'; }
       else if (isActive) { btn.textContent = isPaused ? 'Paused' : 'Active'; if (isPaused) btn.style.opacity = '0.5'; }
+      else if (isFuture) { btn.style.opacity = '0.5'; btn.textContent = 'Scheduled for tomorrow' + (sprint.scheduledH !== undefined ? ', ' + formatTimePretty(sprint.scheduledH) : ''); }
       else if (noTime) { btn.textContent = 'Not enough time (' + sprintMins(sprint) + 'm)'; }
       else { btn.textContent = 'Activate sprint'; }
 
-      if (!isActive && !noTime) {
+      if (!isActive && !noTime && !isFuture) {
         btn.addEventListener('click', () => { openMissionBriefing(sprint); });
       }
       card.appendChild(btn);
@@ -1975,7 +1977,25 @@
     } else if (editingSprintId) {
       // Editing existing sprint — update in place (today's or library)
       const idx = sprints.findIndex(s => s.id === editingSprintId);
-      if (idx > -1) { sprints[idx].name = name; sprints[idx].tasks = tasksCopy; savedSprint = sprints[idx]; }
+      if (idx > -1) {
+        const sprintObj = sprints[idx];
+        sprintObj.name = name;
+        sprintObj.tasks = tasksCopy;
+        savedSprint = sprintObj;
+
+        // If this sprint was created via drag-to-create (has real scheduling
+        // info) and isn't currently running, its calendar events are stale
+        // the moment tasks/durations change — rebuild them from scratch so
+        // the edit actually shows up on the calendar.
+        if (!activeSprints.has(sprintObj.id) && sprintObj.scheduledH !== undefined && sprintObj.col) {
+          events = events.filter(ev => ev.sprintId !== sprintObj.id);
+          let cursor = sprintObj.scheduledH;
+          tasksCopy.forEach(t => {
+            events.push({ id: genId(), sprintId: sprintObj.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col: sprintObj.col, date: sprintObj.date });
+            cursor += packedDurMin(t.dur) / 60;
+          });
+        }
+      }
       const libIdx = sprintLibrary.findIndex(s => s.id === editingSprintId);
       if (libIdx > -1) { sprintLibrary[libIdx].name = name; sprintLibrary[libIdx].tasks = tasksCopy; }
     } else if (saveToLib) {
@@ -1992,7 +2012,7 @@
       toast('"' + name + '" added to Today\'s Sprints');
     }
 
-    save(); renderSprints(); closeModal();
+    save(); renderSprints(); renderEvents(); closeModal();
     document.getElementById('modal-save-to-lib').checked = false;
   });
 
