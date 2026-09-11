@@ -786,13 +786,14 @@
         <button class="qc-tab" id="qc-tab-event" data-mode="event">Event</button>
       </div>
 
-      <!-- Date / time row — only shown when created via drag-to-create -->
+      <!-- Date / time row — shown for anything with real scheduling info -->
       <div class="qc-datetime" id="qc-datetime" style="display:none;">
         <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:0.6;">
           <circle cx="7.5" cy="7.5" r="6.3" stroke="currentColor" stroke-width="1.1"/>
           <path d="M7.5 4V7.5L9.8 9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
         </svg>
         <span id="qc-date-label">Monday, September 7</span>
+        <input type="time" id="qc-start-input" style="display:none;margin-left:8px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;padding:3px 6px;outline:none;" />
         <span id="qc-time-label" style="margin-left:8px;color:var(--text3);"></span>
       </div>
 
@@ -1466,8 +1467,11 @@
   });
 
   // Auto-trigger mission briefing for calendar-scheduled sprints at their scheduled time
+  let missionSnoozedUntil = {}; // sprintId -> real timestamp (ms) until which we won't re-prompt after a dismiss
+
   function checkAutoTrigger() {
     const now = new Date();
+    const nowMs = now.getTime();
     const nowH = now.getHours() + now.getMinutes() / 60;
     sprints.forEach(sprint => {
       if (activeSprints.has(sprint.id)) return;
@@ -1476,11 +1480,15 @@
       // scheduled for tomorrow shares the same clock hours and must wait
       // for dailyReset() to promote it before it's eligible.
       if (sprint.col && sprint.col !== 'today') return;
-      // Trigger within a 1-minute window of the scheduled time
       const diff = nowH - sprint.scheduledH;
-      if (diff >= 0 && diff < (1/60)) {
-        openMissionBriefing(sprint);
-      }
+      if (diff < 0) return; // not due yet
+      // Fire as soon as it's due — or overdue. A narrow live-only window
+      // silently misses anything scheduled while the device/tab wasn't
+      // actively running JS (asleep overnight, backgrounded, etc.), which
+      // is exactly when a 4am wake-up sprint needs it most.
+      if (pendingSprintId === sprint.id && document.getElementById('confirm-overlay').classList.contains('open')) return; // already showing
+      if (missionSnoozedUntil[sprint.id] && nowMs < missionSnoozedUntil[sprint.id]) return; // recently dismissed
+      openMissionBriefing(sprint);
     });
   }
 
@@ -1488,8 +1496,6 @@
   setInterval(checkAutoTrigger, 30000);
   setInterval(() => { if (pausedSprints.size) renderEvents(); }, 15000);
   setInterval(() => { if ([...activeSprints].some(id => !pausedSprints.has(id))) renderSprints(); }, 1000);
-  checkSprintCompletion();
-  checkAutoTrigger();
 
   /* ── MISSION BRIEFING ── */
   const DIFFICULTY_WEIGHTS = { hb: 3, anchor: 2, med: 1, low: 0.5, brk: 0 };
@@ -1603,11 +1609,16 @@
 
   document.getElementById('confirm-no') && document.getElementById('confirm-no').addEventListener('click', () => {
     document.getElementById('confirm-overlay').classList.remove('open');
+    if (pendingSprintId) missionSnoozedUntil[pendingSprintId] = Date.now() + 5 * 60 * 1000;
     pendingSprintId = null;
   });
 
   document.getElementById('confirm-overlay').addEventListener('click', function(e) {
-    if (e.target === this) { this.classList.remove('open'); pendingSprintId = null; }
+    if (e.target === this) {
+      this.classList.remove('open');
+      if (pendingSprintId) missionSnoozedUntil[pendingSprintId] = Date.now() + 5 * 60 * 1000;
+      pendingSprintId = null;
+    }
   });
 
   /* ── CTX MENU ── */
@@ -1657,11 +1668,20 @@
     if (!pendingSprintId) return;
     const sprint = sprints.find(s => s.id === pendingSprintId); if (!sprint) return;
     activeSprints.add(sprint.id);
-    const now = new Date(); let cursor = now.getHours() + now.getMinutes()/60;
-    sprint.tasks.forEach(t => {
-      events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col: 'today' });
-      cursor += packedDurMin(t.dur) / 60;
-    });
+    delete missionSnoozedUntil[sprint.id];
+
+    // If this sprint already has real scheduled events (it was preplanned /
+    // drag-created), just activate it in place using those — building a
+    // fresh set starting from "now" on top of them is exactly what caused
+    // every task to appear twice on the calendar.
+    const alreadyScheduled = events.some(ev => ev.sprintId === sprint.id);
+    if (!alreadyScheduled) {
+      const now = new Date(); let cursor = now.getHours() + now.getMinutes()/60;
+      sprint.tasks.forEach(t => {
+        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col: 'today' });
+        cursor += packedDurMin(t.dur) / 60;
+      });
+    }
     save(); renderSprints(); renderEvents(); toast('"' + sprint.name + '" — mission launched!'); pendingSprintId = null;
   });
 
@@ -1794,14 +1814,23 @@
   /* ── MODAL ── */
   let scheduleCtx = null;      // {col, startH, endH} — set only when Save should CREATE a new scheduled sprint/event
   let qcDatetimeAnchor = null; // {startH, col} — drives the date/time row display; set whenever there's real scheduling info to show, whether creating or editing
+  let qcStartEditable = false; // true when the start time itself can be changed (editing an existing scheduled sprint)
   let qcMode = 'sprint';  // 'sprint' | 'event' — only meaningful while scheduleCtx is set
+
+  function hToTimeInputValue(h) {
+    let hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+    if (mm === 60) { mm = 0; hh = (hh + 1) % 24; }
+    return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+  }
 
   function resetQuickCreateUI() {
     scheduleCtx = null;
     qcDatetimeAnchor = null;
+    qcStartEditable = false;
     qcMode = 'sprint';
     document.getElementById('qc-tabs').style.display = 'none';
     document.getElementById('qc-datetime').style.display = 'none';
+    document.getElementById('qc-start-input').style.display = 'none';
     document.getElementById('qc-desc').style.display = 'none';
     document.getElementById('qc-desc').value = '';
     document.getElementById('modal-tasks').style.display = '';
@@ -1859,16 +1888,34 @@
   function updateQcDatetimeDisplay() {
     if (!qcDatetimeAnchor) return;
     const label = document.getElementById('qc-time-label');
+    const startInput = document.getElementById('qc-start-input');
+
+    if (qcStartEditable) {
+      startInput.style.display = '';
+      startInput.value = hToTimeInputValue(qcDatetimeAnchor.startH);
+    } else {
+      startInput.style.display = 'none';
+    }
+    const startPrefix = qcStartEditable ? '– ' : formatTimePretty(qcDatetimeAnchor.startH) + ' – ';
+
     if (qcMode === 'event' || !modalTasks.length) {
       const endH = qcDatetimeAnchor.endH !== undefined ? qcDatetimeAnchor.endH : qcDatetimeAnchor.startH;
-      label.textContent = formatTimePretty(qcDatetimeAnchor.startH) + ' – ' + formatTimePretty(endH);
+      label.textContent = startPrefix + formatTimePretty(endH);
       return;
     }
     let cursor = qcDatetimeAnchor.startH;
     modalTasks.forEach(t => { cursor += packedDurMin(t.dur) / 60; });
     const totalMins = modalTasks.reduce((s, t) => s + t.dur, 0);
-    label.textContent = formatTimePretty(qcDatetimeAnchor.startH) + ' – ' + formatTimePretty(cursor) + '  ·  ' + totalMins + 'm total';
+    label.textContent = startPrefix + formatTimePretty(cursor) + '  ·  ' + totalMins + 'm total';
   }
+
+  document.getElementById('qc-start-input').addEventListener('input', function() {
+    if (!qcDatetimeAnchor || !this.value) return;
+    const [hh, mm] = this.value.split(':').map(Number);
+    if (isNaN(hh)) return;
+    qcDatetimeAnchor.startH = hh + (mm || 0) / 60;
+    updateQcDatetimeDisplay();
+  });
 
   document.getElementById('qc-tab-sprint').addEventListener('click', () => setQcMode('sprint'));
   document.getElementById('qc-tab-event').addEventListener('click', () => setQcMode('event'));
@@ -1909,6 +1956,7 @@
     // which is reserved for "Save should create a brand-new sprint".
     if (sprint && sprint.col && sprint.scheduledH !== undefined) {
       qcDatetimeAnchor = { startH: sprint.scheduledH, col: sprint.col };
+      qcStartEditable = true;
       const dateForLabel = new Date();
       if (sprint.col === 'tmrw') dateForLabel.setDate(dateForLabel.getDate() + 1);
       document.getElementById('qc-date-label').textContent = formatDatePretty(dateForLabel);
@@ -2003,9 +2051,10 @@
 
         // If this sprint was created via drag-to-create (has real scheduling
         // info) and isn't currently running, its calendar events are stale
-        // the moment tasks/durations change — rebuild them from scratch so
-        // the edit actually shows up on the calendar.
+        // the moment tasks/durations (or the start time itself) change —
+        // rebuild them from scratch so the edit actually shows on the calendar.
         if (!activeSprints.has(sprintObj.id) && sprintObj.scheduledH !== undefined && sprintObj.col) {
+          if (qcDatetimeAnchor) sprintObj.scheduledH = qcDatetimeAnchor.startH; // picks up a moved start time
           events = events.filter(ev => ev.sprintId !== sprintObj.id);
           let cursor = sprintObj.scheduledH;
           tasksCopy.forEach(t => {
@@ -2402,6 +2451,8 @@
   buildLibrary();
   renderCompleted();
   setupDragToCreate();
+  checkSprintCompletion();
+  checkAutoTrigger();
 
   /* ── MOBILE TABS ── */
   (function() {
