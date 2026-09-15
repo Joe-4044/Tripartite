@@ -2157,6 +2157,13 @@
   let qcMode = 'sprint';  // 'sprint' | 'event' — only meaningful while scheduleCtx is set
   let editingEventOccDate = null; // which single occurrence date was clicked, for a repeating event
   let sprintScheduleEnabled = false; // "Give this a start time" toggle state, Sprint mode only
+  // True only once the user has actually touched the date input — distinct
+  // from qcDatetimeAnchor.date just holding a value, since that's prefilled
+  // with whichever occurrence was clicked even when editing a repeating
+  // event's time only. Without this, saving a plain time edit on a later
+  // occurrence would silently drag the whole series' anchor date along
+  // with it.
+  let qcDateWasEdited = false;
 
   function hToTimeInputValue(h) {
     let hh = Math.floor(h), mm = Math.round((h - hh) * 60);
@@ -2209,6 +2216,7 @@
   document.getElementById('qc-date-input').addEventListener('change', function() {
     if (!qcDatetimeAnchor || !this.value) return;
     qcDatetimeAnchor.date = this.value;
+    qcDateWasEdited = true;
     document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(this.value));
   });
 
@@ -2220,6 +2228,7 @@
     editingEventOccDate = null;
     qcMode = 'sprint';
     sprintScheduleEnabled = false;
+    qcDateWasEdited = false;
     document.getElementById('qc-tabs').style.display = 'none';
     document.getElementById('qc-datetime').style.display = 'none';
     document.getElementById('qc-date-label').style.display = '';
@@ -2541,6 +2550,15 @@
 
     qcDatetimeAnchor = { startH: ev.startH, endH: ev.startH + ev.dur / 60, date: editingEventOccDate };
     qcStartEditable = true;
+    // Moving the date is as valid an edit as moving the time — no reason it
+    // should be the one field on this whole row you can't touch. For a
+    // repeating event this moves the anchor date, shifting the series the
+    // same way editing its time already affects the whole series, not just
+    // the occurrence that was clicked.
+    document.getElementById('qc-date-label').style.display = 'none';
+    document.getElementById('qc-date-input').style.display = '';
+    document.getElementById('qc-date-input').min = todayStr();
+    document.getElementById('qc-date-input').value = editingEventOccDate;
     document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(editingEventOccDate));
     document.getElementById('qc-datetime').style.display = 'flex';
 
@@ -2606,6 +2624,7 @@
           if (qcDatetimeAnchor.endH !== undefined) {
             ev.dur = Math.max(15, Math.round((qcDatetimeAnchor.endH - qcDatetimeAnchor.startH) * 60));
           }
+          if (qcDateWasEdited && qcDatetimeAnchor.date) ev.date = qcDatetimeAnchor.date; // moves the (anchor, for a series) date
         }
         ev.period = periodForHour(ev.startH);
         // Repeat settings apply to the whole series, not just the clicked
