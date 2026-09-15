@@ -2430,6 +2430,10 @@
 
     scheduleCtx = ctx; // { date, startH, endH } — date comes straight from the dragged column
     qcDatetimeAnchor = ctx;
+    // The drag only gives a rough range snapped to 15 minutes — let the
+    // start and end be fine-tuned right here instead of forcing a
+    // save-then-reopen-to-edit round trip just to nudge a time.
+    qcStartEditable = true;
     document.getElementById('qc-tabs').style.display = 'flex';
     document.getElementById('qc-datetime').style.display = 'flex';
     document.getElementById('qc-date-input').style.display = 'none'; // fixed by which column was dragged — drag a different one to change it
