@@ -2436,8 +2436,12 @@
     qcStartEditable = true;
     document.getElementById('qc-tabs').style.display = 'flex';
     document.getElementById('qc-datetime').style.display = 'flex';
-    document.getElementById('qc-date-input').style.display = 'none'; // fixed by which column was dragged — drag a different one to change it
-    document.getElementById('qc-date-label').style.display = '';
+    // Which column you dragged on only picks a starting date — no reason
+    // that should be the only way to change it once the dialog is open.
+    document.getElementById('qc-date-label').style.display = 'none';
+    document.getElementById('qc-date-input').style.display = '';
+    document.getElementById('qc-date-input').min = todayStr();
+    document.getElementById('qc-date-input').value = ctx.date;
     document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(ctx.date));
     resetRepeatUI();
 
