@@ -330,16 +330,28 @@
   html.light .toggle-knob { transform: translateX(14px); background: #fff; }
 
   /* ── RIGHT CALENDAR ── */
-  .cal-header { display: flex; border-bottom: 1px solid var(--border2); flex-shrink: 0; }
-  .cal-gutter-head { width: 52px; flex-shrink: 0; }
-  .cal-day-head { flex: 1; padding: 12px 15px; border-left: 1px solid var(--border2); }
+  .cal-toolbar { display: flex; align-items: center; justify-content: flex-end; padding: 9px 12px; border-bottom: 1px solid var(--border2); flex-shrink: 0; }
+  .cal-mode-toggle { display: flex; gap: 2px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+  .cal-mode-btn { background: none; border: none; font-family: inherit; font-size: 12px; color: var(--text3); cursor: pointer; padding: 5px 14px; border-radius: 6px; }
+  .cal-mode-btn:hover { color: var(--text2); }
+  .cal-mode-btn.active { background: #1a1f2a; color: #6a92af; }
+  html.light .cal-mode-btn.active { background: #e8f0f8; color: #2a6090; }
+  /* Single scroll container for the whole grid (both axes). The header row
+     and the time gutter are sticky within it — top:0 for the header, left:0
+     for the gutter — so both stay put as you scroll, and header/columns
+     always stay in horizontal lockstep because they scroll as one unit
+     rather than two separately-synced elements. */
+  #cal-scroll-wrap { position: relative; overflow: auto; -webkit-overflow-scrolling: touch; }
+  .cal-header { display: flex; border-bottom: 1px solid var(--border2); position: sticky; top: 0; left: 0; z-index: 8; background: var(--bg); width: max-content; min-width: 100%; }
+  .cal-gutter-head { width: 52px; flex-shrink: 0; position: sticky; left: 0; z-index: 9; background: var(--bg); }
+  .cal-day-head { flex: 1 1 0; min-width: 108px; padding: 10px 10px; border-left: 1px solid var(--border2); }
   .cal-day-label { font-size: 10px; letter-spacing: 0.08em; color: var(--text3); text-transform: uppercase; margin-bottom: 3px; }
   .cal-day-num { font-size: 22px; font-weight: 500; color: var(--text); line-height: 1; }
   .cal-day-num.today { color: #5a9fff; }
-  .cal-body { display: flex; height: 1536px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; overflow-x: hidden; }
-  .cal-gutter { width: 52px; flex-shrink: 0; position: relative; height: 1536px; }
+  .cal-body { display: flex; height: 1536px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; width: max-content; min-width: 100%; }
+  .cal-gutter { width: 52px; flex-shrink: 0; position: sticky; left: 0; z-index: 6; background: var(--bg); height: 1536px; }
   .cal-columns { flex: 1; display: flex; }
-  .cal-col { flex: 1; border-left: 1px solid var(--border2); position: relative; height: 1536px; }
+  .cal-col { flex: 1 1 0; min-width: 108px; border-left: 1px solid var(--border2); position: relative; height: 1536px; }
   .hour-label { position: absolute; right: 8px; font-size: 10px; color: var(--text3); transform: translateY(-50%); white-space: nowrap; user-select: none; }
   .hour-line  { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border2); pointer-events: none; }
   .half-line  { position: absolute; left: 0; right: 0; border-top: 1px solid var(--half-line); pointer-events: none; }
@@ -410,6 +422,36 @@
     display: flex; align-items: center; gap: 8px;
     font-size: 13px; color: var(--text2);
   }
+
+  /* Repeat control (Event mode) */
+  .qc-repeat { display: flex; flex-direction: column; gap: 8px; }
+  .qc-repeat-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); flex-wrap: wrap; }
+  .qc-repeat-select {
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: inherit; font-size: 12px; padding: 5px 8px; outline: none; cursor: pointer;
+  }
+  .qc-repeat-select:focus { border-color: #2586b7; }
+  .qc-repeat-num {
+    width: 44px; background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: inherit; font-size: 12px; padding: 5px 6px; text-align: center; outline: none;
+  }
+  .qc-repeat-num:focus { border-color: #2586b7; }
+  .qc-repeat-date {
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: inherit; font-size: 12px; padding: 4px 8px; outline: none; color-scheme: dark;
+  }
+  html.light .qc-repeat-date { color-scheme: light; }
+  .qc-repeat-until-label { font-size: 12px; color: var(--text3); }
+  .qc-repeat-weekdays { display: flex; gap: 5px; }
+  .qc-wd {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text3); font-size: 11px; font-family: inherit; cursor: pointer; transition: all 0.1s;
+  }
+  .qc-wd:hover { color: var(--text2); }
+  .qc-wd.active { background: #1a1f2a; color: #6a92af; border-color: #2586b7; }
+  html.light .qc-wd.active { background: #e8f0f8; color: #2a6090; border-color: #6aaad8; }
+  /* Small recurring-event marker inside an event block */
+  .event-block .repeat-mark { opacity: 0.7; margin-right: 3px; }
 
   /* Event description box (Event mode) */
   .qc-desc {
@@ -753,23 +795,21 @@
   </div>
 
   <div class="right">
-    <div class="cal-header">
-      <div class="cal-gutter-head"></div>
-      <div class="cal-day-head">
-        <div class="cal-day-label" id="lbl-today-day"></div>
-        <div class="cal-day-num today" id="lbl-today-num"></div>
-      </div>
-      <div class="cal-day-head">
-        <div class="cal-day-label" id="lbl-tmrw-day"></div>
-        <div class="cal-day-num" id="lbl-tmrw-num"></div>
+    <div class="cal-toolbar">
+      <div class="cal-mode-toggle" id="cal-mode-toggle">
+        <button type="button" class="cal-mode-btn active" data-mode="day">Day</button>
+        <button type="button" class="cal-mode-btn" data-mode="week">Week</button>
       </div>
     </div>
-    <div style="overflow-y:auto;-webkit-overflow-scrolling:touch;" id="cal-scroll-wrap">
+    <div id="cal-scroll-wrap">
+    <div class="cal-header" id="cal-header">
+      <div class="cal-gutter-head"></div>
+      <!-- JS populates one .cal-day-head per visible day -->
+    </div>
     <div class="cal-body" id="cal-body">
       <div class="cal-gutter" id="cal-gutter"></div>
-      <div class="cal-columns">
-        <div class="cal-col" id="col-today"></div>
-        <div class="cal-col" id="col-tmrw"></div>
+      <div class="cal-columns" id="cal-columns">
+        <!-- JS populates one .cal-col per visible day -->
       </div>
     </div>
     </div>
@@ -799,6 +839,43 @@
         <span id="qc-time-label" style="margin-left:8px;color:var(--text3);"></span>
       </div>
 
+      <!-- Repeat control — Events only; hidden in Sprint mode -->
+      <div class="qc-repeat" id="qc-repeat" style="display:none;">
+        <div class="qc-repeat-row">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:0.6;">
+            <path d="M2 6.5C2 4 4 2 6.5 2c2 0 3.7 1.2 4.3 3M12 7.5C12 10 10 12 7.5 12c-2 0-3.7-1.2-4.3-3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+            <path d="M9.5 2.3L10.8 5l-2.8.5M4.5 11.7L3.2 9l2.8-.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <select class="qc-repeat-select" id="qc-repeat-freq">
+            <option value="none">Does not repeat</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="interval">Every few days</option>
+            <option value="weekdays">Specific days</option>
+          </select>
+          <span class="qc-repeat-interval-wrap" id="qc-repeat-interval-wrap" style="display:none;">
+            every <input type="number" id="qc-repeat-interval" class="qc-repeat-num" min="2" max="90" value="2" /> days
+          </span>
+        </div>
+        <div class="qc-repeat-weekdays" id="qc-repeat-weekdays" style="display:none;">
+          <button type="button" class="qc-wd" data-day="0">S</button>
+          <button type="button" class="qc-wd" data-day="1">M</button>
+          <button type="button" class="qc-wd" data-day="2">T</button>
+          <button type="button" class="qc-wd" data-day="3">W</button>
+          <button type="button" class="qc-wd" data-day="4">T</button>
+          <button type="button" class="qc-wd" data-day="5">F</button>
+          <button type="button" class="qc-wd" data-day="6">S</button>
+        </div>
+        <div class="qc-repeat-row" id="qc-repeat-until-wrap" style="display:none;">
+          <span class="qc-repeat-until-label">Ends</span>
+          <select class="qc-repeat-select" id="qc-repeat-end-mode">
+            <option value="never">Never</option>
+            <option value="on">On date</option>
+          </select>
+          <input type="date" id="qc-repeat-until" class="qc-repeat-date" style="display:none;" />
+        </div>
+      </div>
+
       <div class="modal-tasks" id="modal-tasks"></div>
 
       <!-- Event description — only shown in Event mode -->
@@ -813,6 +890,7 @@
           <span class="lib-toggle-label">Save to Library (not Today)</span>
           <input type="checkbox" id="modal-save-to-lib" style="display:none;" />
         </label>
+        <button class="modal-cancel" id="modal-delete-series" style="display:none;border-color:#5a2020;color:#e05a4a;">Delete series</button>
         <button class="modal-cancel" id="modal-delete-event" style="display:none;border-color:#5a2020;color:#e05a4a;">Delete</button>
         <button class="modal-save" id="modal-save">Save sprint</button>
         <button class="modal-cancel" id="modal-cancel">Cancel</button>
@@ -1050,6 +1128,89 @@
   }
   function todayStr() { return dateStr(new Date()); }
 
+  // Parse a 'YYYY-MM-DD' string into a local-midnight Date. Deliberately NOT
+  // `new Date(str)` — that parses as UTC midnight and can land on the wrong
+  // calendar day once shifted into a negative-UTC-offset local time zone.
+  function dateFromStr(s) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  /* ── CALENDAR WEEK/DAY WINDOW ── */
+  // Two view modes: Day (today + tomorrow — the original two-column layout,
+  // for planning right now) and Week (today + the next 6 days, for planning
+  // ahead). Both are rolling windows that re-anchor on reload/daily reset;
+  // there's no separate "jump to a different week" navigation.
+  const WEEK_DAYS = 7;
+  const DAY_MODE_DAYS = 2;
+  let calMode = loadLS('sprint_cal_mode', 'day'); // 'day' | 'week'
+  function getVisibleDates() {
+    const count = calMode === 'week' ? WEEK_DAYS : DAY_MODE_DAYS;
+    const dates = [];
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    for (let i = 0; i < count; i++) {
+      const d = new Date(base);
+      d.setDate(d.getDate() + i);
+      dates.push(dateStr(d));
+    }
+    return dates;
+  }
+
+  function setCalMode(mode) {
+    if (mode === calMode) return;
+    calMode = mode;
+    saveLS('sprint_cal_mode', calMode);
+    document.querySelectorAll('.cal-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    setupCalendar();
+    setupDragToCreate();
+    renderEvents();
+  }
+  document.querySelectorAll('.cal-mode-btn').forEach(b => {
+    b.addEventListener('click', () => setCalMode(b.dataset.mode));
+  });
+
+  /* ── RECURRENCE ── */
+  // Does a (possibly repeating) event occur on calendar date `ds`
+  // ('YYYY-MM-DD')? Events-only feature — sprints never repeat.
+  function isEventOnDate(ev, ds) {
+    if (!ev.repeat) return ev.date === ds;
+    if (ds < ev.date) return false; // before the series even starts
+    if (ev.repeat.until && ds > ev.repeat.until) return false; // series has ended
+    if (ev.exdates && ev.exdates.includes(ds)) return false; // this occurrence was removed
+    const anchor = dateFromStr(ev.date);
+    const d = dateFromStr(ds);
+    const diffDays = Math.round((d - anchor) / 86400000);
+    switch (ev.repeat.freq) {
+      case 'daily':    return true;
+      case 'weekly':   return diffDays % 7 === 0;
+      case 'interval': return diffDays % Math.max(1, ev.repeat.interval || 1) === 0;
+      case 'weekdays': return (ev.repeat.weekdays || []).includes(d.getDay());
+      default:         return false;
+    }
+  }
+
+  // Expand `events` into concrete on-calendar occurrences for each date in
+  // `dates`. Non-repeating events pass through unchanged (one date each).
+  // Repeating events are virtual beyond their own anchor date — each
+  // occurrence is a shallow copy carrying its own `date` and a stable
+  // `occId` (base id + date) so click handlers know which single day was
+  // clicked, while `id` still points back to the shared series.
+  function expandOccurrences(evs, dates) {
+    const out = [];
+    const dateSet = new Set(dates);
+    evs.forEach(ev => {
+      if (!ev.repeat) {
+        if (dateSet.has(ev.date)) out.push({ ...ev, occId: ev.id, occDate: ev.date, baseRef: ev });
+        return;
+      }
+      dates.forEach(ds => {
+        if (isEventOnDate(ev, ds)) out.push({ ...ev, date: ds, occId: ev.id + '::' + ds, occDate: ds, baseRef: ev });
+      });
+    });
+    return out;
+  }
+
   function dailyReset() {
     const lastDate = loadLS('sprint_date', null);
     const today    = todayStr();
@@ -1065,21 +1226,21 @@
       return { sprintId, name: sprint.name, status, tasks: sprint.tasks };
     }).filter(Boolean);
 
-    // Promote anything scheduled on tomorrow's column into today — but only
-    // if it was actually meant for today. Each item now carries the real
-    // calendar date it was scheduled for; if that date has already passed
-    // (the app wasn't opened on the day it was due), it's gone, the way a
-    // real calendar wouldn't resurrect a missed appointment on a later day.
-    // Items with no stored date (created before this existed) fall back to
-    // the old always-promote behavior.
-    const resolveScheduled = item => {
-      if (item.col !== 'tmrw') return null;
-      if (!item.date || item.date === today) return { ...item, col: 'today' }; // due now
-      if (item.date < today) return null; // missed its day — expired
-      return item; // still further ahead — keep waiting
+    // Today's Sprints (and the calendar's Events) start fresh each day —
+    // anything dated in the past is gone, the way a real calendar wouldn't
+    // resurrect a missed appointment. Anything dated today or further ahead
+    // just keeps waiting; there's no more "promote from tomorrow's column"
+    // step now that the calendar shows a whole week of real dates directly.
+    // A repeating event is the one exception: it lives on past its own
+    // anchor date as long as its series hasn't ended (`until`), since
+    // dropping it here would wipe out every future occurrence too.
+    const keepSprint = s => !!s.date && s.date >= today;
+    const keepEvent  = e => {
+      if (e.repeat) return !(e.repeat.until && e.repeat.until < today);
+      return !!e.date && e.date >= today;
     };
-    sprints = sprints.map(resolveScheduled).filter(Boolean);
-    events  = events.map(resolveScheduled).filter(Boolean);
+    sprints = sprints.filter(keepSprint);
+    events  = events.filter(keepEvent);
 
     // Clear daily state — the fresh day starts with just the carried-over
     // closures above, not wiped to empty after they were computed.
@@ -1111,18 +1272,34 @@
 
   /* ── CALENDAR ── */
   function setupCalendar() {
-    const now = new Date(), tmrw = new Date(now);
-    tmrw.setDate(tmrw.getDate() + 1);
-    document.getElementById('lbl-today-day').textContent = DAYS[now.getDay()];
-    document.getElementById('lbl-today-num').textContent = now.getDate();
-    document.getElementById('lbl-tmrw-day').textContent  = DAYS[tmrw.getDay()];
-    document.getElementById('lbl-tmrw-num').textContent  = tmrw.getDate();
+    const dates = getVisibleDates();
+    const today = todayStr();
 
-    const gutter = document.getElementById('cal-gutter');
-    const colT   = document.getElementById('col-today');
-    const colN   = document.getElementById('col-tmrw');
-    const total  = 24 * HOUR_PX;
-    // Heights are set via CSS (1536px = 24 * 64px)
+    const header      = document.getElementById('cal-header');
+    const columnsWrap = document.getElementById('cal-columns');
+    const gutter      = document.getElementById('cal-gutter');
+    header.querySelectorAll('.cal-day-head').forEach(el => el.remove());
+    columnsWrap.innerHTML = '';
+    gutter.innerHTML = '';
+
+    const cols = {}; // date -> its .cal-col element
+    dates.forEach(ds => {
+      const d = dateFromStr(ds);
+
+      const head = document.createElement('div');
+      head.className = 'cal-day-head';
+      head.dataset.date = ds;
+      const lbl = document.createElement('div'); lbl.className = 'cal-day-label'; lbl.textContent = DAYS[d.getDay()];
+      const num = document.createElement('div'); num.className = 'cal-day-num' + (ds === today ? ' today' : ''); num.textContent = d.getDate();
+      head.append(lbl, num);
+      header.appendChild(head);
+
+      const col = document.createElement('div');
+      col.className = 'cal-col';
+      col.dataset.date = ds;
+      columnsWrap.appendChild(col);
+      cols[ds] = col;
+    });
 
     for (let h = 0; h <= 24; h++) {
       const y = h * HOUR_PX;
@@ -1132,24 +1309,31 @@
         lbl.textContent = h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h-12) + ' PM';
         gutter.appendChild(lbl);
       }
-      [colT, colN].forEach(col => {
+      dates.forEach(ds => {
+        const col = cols[ds];
         const line = document.createElement('div'); line.className = 'hour-line'; line.style.top = y + 'px'; col.appendChild(line);
         if (h < 24) { const half = document.createElement('div'); half.className = 'half-line'; half.style.top = (y + HOUR_PX/2) + 'px'; col.appendChild(half); }
       });
     }
 
     SECTIONS.forEach(s => {
-      [colT, colN].forEach(col => {
+      dates.forEach(ds => {
+        const col = cols[ds];
         const line = document.createElement('div'); line.className = 'section-line ' + s.cls; line.style.top = (s.hour * HOUR_PX) + 'px'; col.appendChild(line);
       });
     });
 
-    const nl = document.createElement('div'); nl.className = 'now-line'; nl.id = 'now-line'; colT.appendChild(nl);
-    updateNow(); setInterval(updateNow, 60000);
+    const nl = document.createElement('div'); nl.className = 'now-line'; nl.id = 'now-line';
+    if (cols[today]) cols[today].appendChild(nl);
+    updateNow();
+    if (nowInterval) clearInterval(nowInterval);
+    nowInterval = setInterval(updateNow, 60000);
+    const now = new Date();
     const h2 = now.getHours() + now.getMinutes()/60;
     setTimeout(() => { const wrap = document.getElementById('cal-scroll-wrap'); if (wrap) wrap.scrollTop = Math.max(0, h2*HOUR_PX - 140); }, 50);
   }
 
+  let nowInterval = null; // re-created each time setupCalendar() rebuilds the columns
   function updateNow() { const nl = document.getElementById('now-line'); if (!nl) return; const n = new Date(); nl.style.top = ((n.getHours() + n.getMinutes()/60) * HOUR_PX) + 'px'; }
 
   /* ── RENDER SPRINTS ── */
@@ -1272,14 +1456,14 @@
       const isActive    = activeSprints.has(sprint.id);
       const isPaused    = pausedSprints.has(sprint.id);
       const isCompleted = completedSprints.some(cs => cs.sprintId === sprint.id);
-      const isFuture    = sprint.col === 'tmrw'; // scheduled for tomorrow — not startable today
+      const isFuture    = !!sprint.date && sprint.date !== todayStr(); // scheduled for a later day — not startable today
       const noTime      = !isActive && !isCompleted && !isFuture && sprintMins(sprint) > ml;
       const btn = document.createElement('button');
       btn.className = 'activate-btn' + (isActive && !isPaused ? ' active' : '');
       btn.disabled  = isActive || noTime || isCompleted || isFuture;
       if (isCompleted) { btn.style.opacity = '0.4'; btn.textContent = 'Completed'; }
       else if (isActive) { btn.textContent = isPaused ? 'Paused' : 'Active'; if (isPaused) btn.style.opacity = '0.5'; }
-      else if (isFuture) { btn.style.opacity = '0.5'; btn.textContent = 'Scheduled for tomorrow' + (sprint.scheduledH !== undefined ? ', ' + formatTimePretty(sprint.scheduledH) : ''); }
+      else if (isFuture) { btn.style.opacity = '0.5'; btn.textContent = 'Scheduled for ' + relativeDayLabel(sprint.date) + (sprint.scheduledH !== undefined ? ', ' + formatTimePretty(sprint.scheduledH) : ''); }
       else if (noTime) { btn.textContent = 'Not enough time (' + sprintMins(sprint) + 'm)'; }
       else { btn.textContent = 'Activate sprint'; }
 
@@ -1318,7 +1502,7 @@
     const pauseH = pausedAt[sprintId] !== undefined ? pausedAt[sprintId] : nowH;
     const elapsed = Math.max(0, nowH - pauseH); // hours lost
 
-    const sprintEvs = events.filter(ev => ev.sprintId === sprintId && ev.col === 'today');
+    const sprintEvs = events.filter(ev => ev.sprintId === sprintId && ev.date === todayStr());
     if (!sprintEvs.length) {
       // Nothing to shift — just clear the paused flag
       pausedSprints.delete(sprintId);
@@ -1355,15 +1539,21 @@
   // any other event already sitting on today's calendar? Checks against the
   // resumed sprint's own recovery buffer too, since that's calendar-real time.
   function findResumeCollision(sprintId, elapsed) {
-    const mineEvs = events.filter(ev => ev.sprintId === sprintId && ev.col === 'today');
+    const today = todayStr();
+    // Sprint task events never repeat, so an exact date match is enough here.
+    const mineEvs = events.filter(ev => ev.sprintId === sprintId && ev.date === today);
     if (!mineEvs.length) return null;
     const mySprint    = sprints.find(s => s.id === sprintId);
     const myRecovery  = (mySprint && mySprint.recoveryMins) ? mySprint.recoveryMins / 60 : 0;
     const mineStart   = Math.min(...mineEvs.map(ev => ev.startH + elapsed));
     const mineEnd     = Math.max(...mineEvs.map(ev => ev.startH + elapsed + ev.dur / 60)) + myRecovery;
 
-    for (const ev of events) {
-      if (ev.col !== 'today' || ev.sprintId === sprintId) continue;
+    // Other events might be recurring — expand today's occurrences so a
+    // daily/weekly event whose stored anchor date is in the past still
+    // counts as "on the calendar today" for collision purposes.
+    const todaysOccurrences = expandOccurrences(events, [today]);
+    for (const ev of todaysOccurrences) {
+      if (ev.sprintId === sprintId) continue;
       const evStart = ev.startH, evEnd = ev.startH + ev.dur / 60;
       if (mineStart < evEnd && mineEnd > evStart) {
         if (ev.sprintId) {
@@ -1483,10 +1673,10 @@
       if (activeSprints.has(sprint.id)) return;
       if (completedSprints.some(cs => cs.sprintId === sprint.id)) return; // already ran and finished — never re-launch it
       if (sprint.scheduledH === undefined || sprint.scheduledH === null) return;
-      // Only sprints scheduled on TODAY's column can auto-trigger — a sprint
-      // scheduled for tomorrow shares the same clock hours and must wait
-      // for dailyReset() to promote it before it's eligible.
-      if (sprint.col && sprint.col !== 'today') return;
+      // Only sprints scheduled for TODAY can auto-trigger — a sprint
+      // scheduled for a later day shares the same clock hours and must wait
+      // for that day to actually arrive before it's eligible.
+      if (sprint.date && sprint.date !== todayStr()) return;
       const diff = nowH - sprint.scheduledH;
       if (diff < 0) return; // not due yet
       // Fire as soon as it's due — or overdue. A narrow live-only window
@@ -1685,7 +1875,7 @@
     if (!alreadyScheduled) {
       const now = new Date(); let cursor = now.getHours() + now.getMinutes()/60;
       sprint.tasks.forEach(t => {
-        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col: 'today' });
+        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date: todayStr() });
         cursor += packedDurMin(t.dur) / 60;
       });
     }
@@ -1707,30 +1897,40 @@
     return Math.max(0, nowH - pauseH);
   }
 
+  function colForDate(ds) {
+    return document.querySelector('.cal-col[data-date="' + ds + '"]');
+  }
+
   function renderEvents() {
-    const colT = document.getElementById('col-today'), colN = document.getElementById('col-tmrw');
-    colT.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
-    colN.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
+    const dates = getVisibleDates();
+    document.querySelectorAll('.cal-col').forEach(col => {
+      col.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
+    });
+
+    // Repeating events materialize into one virtual occurrence per matching
+    // visible date; everything else passes through as itself.
+    const occurrences = expandOccurrences(events, dates);
 
     // sprintId -> the actual clamped, shifted pixel bottom of its last block,
     // so the recovery block below can anchor to reality instead of recomputing
     // its own position from raw (unclamped, unshifted) hours.
     const sprintBlockBottomPx = {};
-    const sprintBlockCol = {};
+    const sprintBlockDate = {};
 
-    // Process each column separately, sorted by effective (live-shifted) start
-    // time, and force each block to start at least BLOCK_GAP_PX after the
-    // previous one ends.
-    ['today', 'tmrw'].forEach(colKey => {
-      const col = colKey === 'today' ? colT : colN;
-      const colEvents = events
-        .filter(e => e.col === colKey)
+    // Process each visible day separately, sorted by effective (live-shifted)
+    // start time, and force each block to start at least BLOCK_GAP_PX after
+    // the previous one ends.
+    dates.forEach(ds => {
+      const col = colForDate(ds);
+      if (!col) return;
+      const dayEvents = occurrences
+        .filter(e => e.date === ds)
         .map(e => ({ ev: e, shift: liveShiftFor(e.sprintId) }))
         .sort((a, b) => (a.ev.startH + a.shift) - (b.ev.startH + b.shift));
 
       let prevBottomPx = null;
 
-      colEvents.forEach(({ ev, shift }) => {
+      dayEvents.forEach(({ ev, shift }) => {
         const effStartH = ev.startH + shift;
         const rawTopPx  = effStartH * HOUR_PX;
         const rawHPx    = Math.max((ev.dur / 60) * HOUR_PX, 14);
@@ -1744,20 +1944,22 @@
 
         const block = document.createElement('div');
         block.className = 'event-block ' + eventClass(ev.period, ev.type);
-        block.dataset.id = ev.id;
+        block.dataset.id = ev.occId;
         block.style.top    = topPx + 'px';
         block.style.height = hPx + 'px';
         if (shift > 0) block.style.opacity = '0.6'; // visually distinguish a creeping paused block
-        block.innerHTML = ev.dur >= 15 ? '<div class="event-name">' + ev.name + '</div>' : '';
+        block.innerHTML = ev.dur >= 15
+          ? '<div class="event-name">' + (ev.repeat ? '<span class="repeat-mark">↻</span>' : '') + ev.name + '</div>'
+          : '';
         if (ev.type === 'evt' && !ev.sprintId) {
-          block.addEventListener('click', (e) => { e.stopPropagation(); openEventEdit(ev); });
+          block.addEventListener('click', (e) => { e.stopPropagation(); openEventEdit(ev.baseRef, ev.occDate); });
         }
         col.appendChild(block);
 
         prevBottomPx = topPx + hPx;
         if (ev.sprintId) {
           sprintBlockBottomPx[ev.sprintId] = prevBottomPx;
-          sprintBlockCol[ev.sprintId] = colKey;
+          sprintBlockDate[ev.sprintId] = ds;
         }
       });
     });
@@ -1769,7 +1971,8 @@
       const sprint = sprints.find(s => s.id === sid);
       if (!sprint || !sprint.recoveryMins) return;
       const bottomPx = sprintBlockBottomPx[sid];
-      const col = sprintBlockCol[sid] === 'today' ? colT : colN;
+      const col = colForDate(sprintBlockDate[sid]);
+      if (!col) return;
       const recH = (sprint.recoveryMins / 60) * HOUR_PX;
       const rec = document.createElement('div');
       rec.className = 'recovery-block';
@@ -1827,6 +2030,7 @@
   let qcStartEditable = false; // true when the start time itself can be changed (editing an existing scheduled sprint)
   let editingEventId = null;   // set when editing an existing plain calendar Event (not a sprint)
   let qcMode = 'sprint';  // 'sprint' | 'event' — only meaningful while scheduleCtx is set
+  let editingEventOccDate = null; // which single occurrence date was clicked, for a repeating event
 
   function hToTimeInputValue(h) {
     let hh = Math.floor(h), mm = Math.round((h - hh) * 60);
@@ -1839,28 +2043,104 @@
     qcDatetimeAnchor = null;
     qcStartEditable = false;
     editingEventId = null;
+    editingEventOccDate = null;
     qcMode = 'sprint';
     document.getElementById('qc-tabs').style.display = 'none';
     document.getElementById('qc-datetime').style.display = 'none';
     document.getElementById('qc-start-input').style.display = 'none';
     document.getElementById('qc-desc').style.display = 'none';
     document.getElementById('qc-desc').value = '';
+    document.getElementById('qc-repeat').style.display = 'none';
+    resetRepeatUI();
     document.getElementById('modal-tasks').style.display = '';
     document.getElementById('modal-add-task').style.display = '';
     document.getElementById('modal-right').style.display = '';
     document.getElementById('modal-save-to-lib-label').style.display = '';
     document.getElementById('modal-delete-event').style.display = 'none';
+    document.getElementById('modal-delete-event').textContent = 'Delete';
+    document.getElementById('modal-delete-series').style.display = 'none';
     document.getElementById('modal-sprint-name').placeholder = 'Name this sprint';
     document.getElementById('modal-save').textContent = 'Save sprint';
     document.getElementById('qc-tab-sprint').classList.add('active');
     document.getElementById('qc-tab-event').classList.remove('active');
   }
 
+  /* ── REPEAT UI (Event mode only) ── */
+  function updateRepeatUIVisibility() {
+    const freq = document.getElementById('qc-repeat-freq').value;
+    document.getElementById('qc-repeat-interval-wrap').style.display = freq === 'interval' ? '' : 'none';
+    document.getElementById('qc-repeat-weekdays').style.display = freq === 'weekdays' ? 'flex' : 'none';
+    document.getElementById('qc-repeat-until-wrap').style.display = freq === 'none' ? 'none' : 'flex';
+    const endMode = document.getElementById('qc-repeat-end-mode').value;
+    document.getElementById('qc-repeat-until').style.display = endMode === 'on' ? '' : 'none';
+  }
+
+  function resetRepeatUI() {
+    document.getElementById('qc-repeat-freq').value = 'none';
+    document.getElementById('qc-repeat-interval').value = 2;
+    document.getElementById('qc-repeat-end-mode').value = 'never';
+    document.getElementById('qc-repeat-until').value = '';
+    document.querySelectorAll('.qc-wd').forEach(b => b.classList.remove('active'));
+    updateRepeatUIVisibility();
+  }
+
+  function populateRepeatUI(repeat) {
+    if (!repeat) { resetRepeatUI(); return; }
+    document.getElementById('qc-repeat-freq').value = repeat.freq;
+    document.getElementById('qc-repeat-interval').value = repeat.interval || 2;
+    document.getElementById('qc-repeat-end-mode').value = repeat.until ? 'on' : 'never';
+    document.getElementById('qc-repeat-until').value = repeat.until || '';
+    document.querySelectorAll('.qc-wd').forEach(b => {
+      b.classList.toggle('active', (repeat.weekdays || []).includes(Number(b.dataset.day)));
+    });
+    updateRepeatUIVisibility();
+  }
+
+  // Reads the repeat controls into a `repeat` object, or null for
+  // "Does not repeat" (also null if 'weekdays' is picked with none selected —
+  // that's not a valid recurrence, so it's treated as no repeat at all).
+  function readRepeatFromUI() {
+    const freq = document.getElementById('qc-repeat-freq').value;
+    if (freq === 'none') return null;
+    const repeat = { freq };
+    if (freq === 'interval') {
+      repeat.interval = Math.max(2, parseInt(document.getElementById('qc-repeat-interval').value, 10) || 2);
+    }
+    if (freq === 'weekdays') {
+      repeat.weekdays = [...document.querySelectorAll('.qc-wd.active')].map(b => Number(b.dataset.day));
+      if (!repeat.weekdays.length) return null;
+    }
+    const endMode = document.getElementById('qc-repeat-end-mode').value;
+    if (endMode === 'on' && document.getElementById('qc-repeat-until').value) {
+      repeat.until = document.getElementById('qc-repeat-until').value;
+    }
+    return repeat;
+  }
+
+  document.getElementById('qc-repeat-freq').addEventListener('change', updateRepeatUIVisibility);
+  document.getElementById('qc-repeat-end-mode').addEventListener('change', updateRepeatUIVisibility);
+  document.querySelectorAll('.qc-wd').forEach(b => {
+    b.addEventListener('click', () => b.classList.toggle('active'));
+  });
+
   function formatDatePretty(d) {
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     return DAYS_FULL[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
   }
   const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // Short human label for a date relative to today — "Today" / "Tomorrow" /
+  // the weekday name for anything else within the visible week.
+  function relativeDayLabel(ds) {
+    const today = todayStr();
+    if (ds === today) return 'today';
+    const d = dateFromStr(ds);
+    const t = dateFromStr(today);
+    const diffDays = Math.round((d - t) / 86400000);
+    if (diffDays === 1) return 'tomorrow';
+    if (diffDays > 1 && diffDays < 7) return DAYS_FULL[d.getDay()];
+    return formatDatePretty(d);
+  }
 
   function formatTimePretty(h) {
     h = ((h % 24) + 24) % 24;
@@ -1888,6 +2168,7 @@
     document.getElementById('modal-right').style.display    = isSprint ? '' : 'none';
     document.getElementById('modal-save-to-lib-label').style.display = isSprint ? '' : 'none';
     document.getElementById('qc-desc').style.display        = isSprint ? 'none' : '';
+    document.getElementById('qc-repeat').style.display      = isSprint ? 'none' : 'flex';
     document.getElementById('modal-sprint-name').placeholder = isSprint ? 'Name this sprint' : 'Name this Event';
     document.getElementById('modal-save').textContent        = isSprint ? 'Save Sprint' : 'Save Event';
     updateQcDatetimeDisplay();
@@ -1941,15 +2222,12 @@
     document.getElementById('modal-tasks').innerHTML = '';
     document.getElementById('modal-sprint-name').value = '';
 
-    scheduleCtx = ctx;
+    scheduleCtx = ctx; // { date, startH, endH } — date comes straight from the dragged column
     qcDatetimeAnchor = ctx;
     document.getElementById('qc-tabs').style.display = 'flex';
     document.getElementById('qc-datetime').style.display = 'flex';
-
-    const dateForCol = new Date();
-    if (ctx.col === 'tmrw') dateForCol.setDate(dateForCol.getDate() + 1);
-    scheduleCtx.date = dateStr(dateForCol); // the real calendar date this is meant for
-    document.getElementById('qc-date-label').textContent = formatDatePretty(dateForCol);
+    document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(ctx.date));
+    resetRepeatUI();
 
     setQcMode('sprint'); // also triggers the initial time-label render
     document.getElementById('modal-overlay').classList.add('open');
@@ -1967,12 +2245,10 @@
     // show its date/time row read-only — same display as at creation time,
     // live-updating as tasks are edited — without touching scheduleCtx,
     // which is reserved for "Save should create a brand-new sprint".
-    if (sprint && sprint.col && sprint.scheduledH !== undefined) {
-      qcDatetimeAnchor = { startH: sprint.scheduledH, col: sprint.col };
+    if (sprint && sprint.date && sprint.scheduledH !== undefined) {
+      qcDatetimeAnchor = { startH: sprint.scheduledH, date: sprint.date };
       qcStartEditable = true;
-      const dateForLabel = new Date();
-      if (sprint.col === 'tmrw') dateForLabel.setDate(dateForLabel.getDate() + 1);
-      document.getElementById('qc-date-label').textContent = formatDatePretty(dateForLabel);
+      document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(sprint.date));
       document.getElementById('qc-datetime').style.display = 'flex';
     }
 
@@ -1983,10 +2259,13 @@
 
   // Opened by clicking an existing plain calendar Event block — lets it be
   // renamed, moved to a new time, re-described, or deleted, the way any
-  // normal calendar event can be.
-  function openEventEdit(ev) {
+  // normal calendar event can be. `ev` is always the real base object (never
+  // a virtual occurrence copy); `occDate` is the specific day that was
+  // clicked, which matters when `ev` is a repeating series.
+  function openEventEdit(ev, occDate) {
     resetQuickCreateUI();
     editingEventId = ev.id;
+    editingEventOccDate = occDate || ev.date;
     qcMode = 'event';
     document.getElementById('modal-tasks').style.display = 'none';
     document.getElementById('modal-add-task').style.display = 'none';
@@ -1998,23 +2277,46 @@
     document.getElementById('modal-sprint-name').value = ev.name;
     document.getElementById('modal-save').textContent = 'Save Event';
     document.getElementById('modal-delete-event').style.display = '';
+    document.getElementById('modal-delete-event').textContent = ev.repeat ? 'Delete this event' : 'Delete';
+    document.getElementById('modal-delete-series').style.display = ev.repeat ? '' : 'none';
 
-    qcDatetimeAnchor = { startH: ev.startH, endH: ev.startH + ev.dur / 60, col: ev.col };
+    qcDatetimeAnchor = { startH: ev.startH, endH: ev.startH + ev.dur / 60, date: editingEventOccDate };
     qcStartEditable = true;
-    const dateForLabel = new Date();
-    if (ev.col === 'tmrw') dateForLabel.setDate(dateForLabel.getDate() + 1);
-    document.getElementById('qc-date-label').textContent = formatDatePretty(dateForLabel);
+    document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(editingEventOccDate));
     document.getElementById('qc-datetime').style.display = 'flex';
+
+    document.getElementById('qc-repeat').style.display = 'flex';
+    populateRepeatUI(ev.repeat);
     updateQcDatetimeDisplay();
 
     document.getElementById('modal-overlay').classList.add('open');
   }
 
+  // "Delete this event": for a one-off event, removes it entirely. For a
+  // repeating series, removes just the clicked occurrence (an exdate) and
+  // leaves the rest of the series untouched.
   document.getElementById('modal-delete-event').addEventListener('click', () => {
     if (!editingEventId) return;
-    events = events.filter(ev => ev.id !== editingEventId);
+    const ev = events.find(e => e.id === editingEventId);
+    if (ev && ev.repeat) {
+      ev.exdates = ev.exdates || [];
+      if (!ev.exdates.includes(editingEventOccDate)) ev.exdates.push(editingEventOccDate);
+      save(); renderEvents(); closeModal();
+      toast('Removed that occurrence');
+      return;
+    }
+    events = events.filter(e => e.id !== editingEventId);
     save(); renderEvents(); closeModal();
     toast('Event deleted');
+  });
+
+  // "Delete series": only shown for a repeating event — removes the whole
+  // series (every past and future occurrence) in one go.
+  document.getElementById('modal-delete-series').addEventListener('click', () => {
+    if (!editingEventId) return;
+    events = events.filter(e => e.id !== editingEventId);
+    save(); renderEvents(); closeModal();
+    toast('Series deleted');
   });
 
   function closeModal() {
@@ -2042,6 +2344,10 @@
         ev.desc = document.getElementById('qc-desc').value.trim() || undefined;
         if (qcDatetimeAnchor) ev.startH = qcDatetimeAnchor.startH;
         ev.period = periodForHour(ev.startH);
+        // Repeat settings apply to the whole series, not just the clicked
+        // occurrence — exdates (individually-removed days) are left as-is.
+        const repeat = readRepeatFromUI();
+        if (repeat) ev.repeat = repeat; else delete ev.repeat;
       }
       save(); renderEvents(); closeModal();
       toast('"' + name + '" updated');
@@ -2051,30 +2357,33 @@
     // ── Scheduled save: dialog was opened via drag-to-create ──
     if (scheduleCtx) {
       if (!name) { toast('Give this a name first'); return; }
-      const { col, startH, endH, date } = scheduleCtx;
+      const { startH, endH, date } = scheduleCtx;
 
       if (qcMode === 'event') {
         const dur = Math.max(Math.round((endH - startH) * 60), 15);
         const desc = document.getElementById('qc-desc').value.trim();
-        events.push({
-          id: genId(), name, dur, startH, col, date,
+        const repeat = readRepeatFromUI();
+        const newEvent = {
+          id: genId(), name, dur, startH, date,
           period: periodForHour(startH), type: 'evt',
           desc: desc || undefined,
-        });
+        };
+        if (repeat) newEvent.repeat = repeat;
+        events.push(newEvent);
         save(); renderEvents(); closeModal();
-        toast('"' + name + '" added to ' + (col === 'today' ? "today's" : "tomorrow's") + ' calendar');
+        toast('"' + name + '" added to ' + relativeDayLabel(date) + "'s calendar" + (repeat ? ', repeating' : ''));
         return;
       }
 
       // qcMode === 'sprint'
       if (!modalTasks.length) { toast('Add at least one task'); return; }
       const tasksCopy = modalTasks.map(t => ({ id: genId(), name: t.name, dur: t.dur, period: t.period, type: t.type }));
-      const sprint = { id: genId(), name, tasks: tasksCopy, scheduledH: startH, col, date, recoveryMins: 10 };
+      const sprint = { id: genId(), name, tasks: tasksCopy, scheduledH: startH, date, recoveryMins: 10 };
       sprints.push(sprint);
 
       let cursor = startH;
       tasksCopy.forEach(t => {
-        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col, date });
+        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date });
         cursor += packedDurMin(t.dur) / 60;
       });
 
@@ -2085,7 +2394,7 @@
       // gets created and scheduled, just not force-started.
       const now = new Date();
       const nowH = now.getHours() + now.getMinutes() / 60;
-      if (col === 'today' && startH <= nowH && cursor <= 24) activeSprints.add(sprint.id);
+      if (date === todayStr() && startH <= nowH && cursor <= 24) activeSprints.add(sprint.id);
 
       save(); renderSprints(); renderEvents(); closeModal();
       toast('"' + name + '" scheduled for ' + formatTimePretty(startH));
@@ -2120,12 +2429,12 @@
         // info) and isn't currently running, its calendar events are stale
         // the moment tasks/durations (or the start time itself) change —
         // rebuild them from scratch so the edit actually shows on the calendar.
-        if (!activeSprints.has(sprintObj.id) && sprintObj.scheduledH !== undefined && sprintObj.col) {
+        if (!activeSprints.has(sprintObj.id) && sprintObj.scheduledH !== undefined && sprintObj.date) {
           if (qcDatetimeAnchor) sprintObj.scheduledH = qcDatetimeAnchor.startH; // picks up a moved start time
           events = events.filter(ev => ev.sprintId !== sprintObj.id);
           let cursor = sprintObj.scheduledH;
           tasksCopy.forEach(t => {
-            events.push({ id: genId(), sprintId: sprintObj.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, col: sprintObj.col, date: sprintObj.date });
+            events.push({ id: genId(), sprintId: sprintObj.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date: sprintObj.date });
             cursor += packedDurMin(t.dur) / 60;
           });
         }
@@ -2152,11 +2461,10 @@
 
   /* ── DRAG TO CREATE ── */
   function setupDragToCreate() {
-    const colT = document.getElementById('col-today');
-    const colN = document.getElementById('col-tmrw');
     const SNAP_H = 0.25; // snap to 15-minute increments
 
-    [{ el: colT, key: 'today' }, { el: colN, key: 'tmrw' }].forEach(({ el, key }) => {
+    document.querySelectorAll('.cal-col').forEach((el) => {
+      const ds = el.dataset.date;
       let dragging = false, startY = 0, startHRaw = 0, ghost = null, moved = false;
 
       el.addEventListener('mousedown', (e) => {
@@ -2206,7 +2514,7 @@
         if (!moved) { lo = a; hi = a + 1; } // plain click — default to a 1-hour block
         if (hi - lo < SNAP_H) hi = lo + SNAP_H;
         if (ghost) { ghost.remove(); ghost = null; }
-        openQuickCreate({ col: key, startH: lo, endH: hi });
+        openQuickCreate({ date: ds, startH: lo, endH: hi });
       });
     });
   }
@@ -2511,6 +2819,7 @@
   };
 
   /* ── INIT ── */
+  document.querySelectorAll('.cal-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === calMode));
   dailyReset();
   setupCalendar();
   renderSprints();
