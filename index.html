@@ -307,6 +307,7 @@
   .sprint-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; margin-bottom: 10px; }
   .sprint-card-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 6px; margin-bottom: 11px; }
   .sprint-card-name { font-size: 10px; letter-spacing: 0.08em; color: var(--text3); text-transform: uppercase; font-weight: 500; }
+  .sprint-card-time { font-size: 10px; color: var(--text3); margin: 2px 0 8px 0; }
   .sprint-menu-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
   .sprint-menu-btn:hover { background: var(--card2); color: var(--text2); }
 
@@ -456,6 +457,7 @@
     color: var(--text); font-family: inherit; font-size: 12px; padding: 4px 8px; outline: none; color-scheme: dark;
   }
   html.light .qc-repeat-date { color-scheme: light; }
+  html.light #qc-date-input { color-scheme: light; }
   .qc-repeat-until-label { font-size: 12px; color: var(--text3); }
   .qc-repeat-weekdays { display: flex; gap: 5px; }
   .qc-wd {
@@ -545,6 +547,17 @@
   .lib-dot { width: 7px; height: 7px; border-radius: 3.5px; flex-shrink: 0; }
   .lib-name { flex: 1; font-size: 12px; color: var(--text2); }
   .lib-dur  { font-size: 11px; color: var(--text3); }
+  .lib-item-del { opacity: 0; width: 18px; height: 18px; flex-shrink: 0; background: none; border: none; color: var(--text3); font-size: 15px; line-height: 1; cursor: pointer; border-radius: 4px; transition: opacity 0.1s; }
+  .lib-item:hover .lib-item-del { opacity: 0.7; }
+  .lib-item-del:hover { opacity: 1 !important; color: #e05a4a; background: rgba(224,90,74,0.12); }
+  .event-popover { position: fixed; z-index: 60; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; width: 220px; box-shadow: 0 8px 28px rgba(0,0,0,0.4); }
+  .event-popover-title { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 2px; word-break: break-word; }
+  .event-popover-time { font-size: 10px; color: var(--text3); margin-bottom: 6px; }
+  .event-popover-desc { font-size: 11px; color: var(--text2); white-space: pre-wrap; margin-bottom: 8px; max-height: 140px; overflow-y: auto; }
+  .event-popover-desc.empty { color: var(--text3); font-style: italic; }
+  .event-popover-actions { display: flex; justify-content: flex-end; }
+  .event-popover-actions button { background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text2); font-size: 11px; padding: 4px 12px; cursor: pointer; font-family: inherit; }
+  .event-popover-actions button:hover { color: var(--text); background: var(--border); }
 
   /* ── MISSION BRIEFING ── */
   .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
@@ -834,6 +847,17 @@
   </div>
 </div>
 
+<!-- EVENT PREVIEW POPOVER — a lightweight tap-to-peek before committing to
+     the full edit dialog; shows the description without opening it. -->
+<div class="event-popover" id="event-popover" style="display:none;">
+  <div class="event-popover-title" id="event-popover-title"></div>
+  <div class="event-popover-time" id="event-popover-time"></div>
+  <div class="event-popover-desc" id="event-popover-desc"></div>
+  <div class="event-popover-actions">
+    <button id="event-popover-edit">Edit</button>
+  </div>
+</div>
+
 <!-- SPRINT STUDIO / QUICK CREATE -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
@@ -846,6 +870,17 @@
         <button class="qc-tab" id="qc-tab-event" data-mode="event">Event</button>
       </div>
 
+      <!-- Optional scheduling toggle — Sprint mode only, and only when the
+           sprint isn't already positioned via drag-to-create (which fixes
+           its date/time by definition — dragging a different column is how
+           you'd change that). Lets a Library/manually-added sprint be given
+           (or stripped of) a real start time after the fact. -->
+      <label class="lib-toggle-row" id="sprint-schedule-toggle-label" style="display:none;">
+        <div class="lib-toggle-track"><div class="lib-toggle-knob"></div></div>
+        <span class="lib-toggle-label">Give this a start time</span>
+        <input type="checkbox" id="sprint-schedule-toggle" style="display:none;" />
+      </label>
+
       <!-- Date / time row — shown for anything with real scheduling info -->
       <div class="qc-datetime" id="qc-datetime" style="display:none;">
         <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:0.6;">
@@ -853,8 +888,10 @@
           <path d="M7.5 4V7.5L9.8 9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
         </svg>
         <span id="qc-date-label">Monday, September 7</span>
+        <input type="date" id="qc-date-input" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;padding:3px 6px;outline:none;color-scheme:dark;" />
         <input type="time" id="qc-start-input" style="display:none;margin-left:8px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;padding:3px 6px;outline:none;" />
         <span id="qc-time-label" style="margin-left:8px;color:var(--text3);"></span>
+        <input type="time" id="qc-end-input" style="display:none;margin-left:4px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;padding:3px 6px;outline:none;" />
       </div>
 
       <!-- Repeat control — Events only; hidden in Sprint mode -->
@@ -1488,6 +1525,25 @@
       const isCompleted = completedSprints.some(cs => cs.sprintId === sprint.id);
       const isFuture    = !!sprint.date && sprint.date !== todayStr(); // scheduled for a later day — not startable today
       const noTime      = !isActive && !isCompleted && !isFuture && sprintMins(sprint) > ml;
+
+      // Time hint — so a sprint's likely end time is visible before you ever
+      // click Activate, whether it has a real start time or not. Library
+      // and manually-added sprints never had this at all; "ends ~X if
+      // started now" is the honest answer for anything unscheduled.
+      if (!isActive && !isCompleted && !isFuture) {
+        const totalPackedH = sprint.tasks.reduce((h, t) => h + packedDurMin(t.dur) / 60, 0);
+        const timeHint = document.createElement('div');
+        timeHint.className = 'sprint-card-time';
+        if (sprint.date === todayStr() && sprint.scheduledH !== undefined) {
+          timeHint.textContent = 'Starts ' + formatTimePretty(sprint.scheduledH) + ' · ends ~' + formatTimePretty(sprint.scheduledH + totalPackedH);
+        } else {
+          const now = new Date();
+          const nowH = now.getHours() + now.getMinutes() / 60;
+          timeHint.textContent = 'Not scheduled · ends ~' + formatTimePretty(nowH + totalPackedH) + ' if started now';
+        }
+        card.appendChild(timeHint);
+      }
+
       const btn = document.createElement('button');
       btn.className = 'activate-btn' + (isActive && !isPaused ? ' active' : '');
       btn.disabled  = isActive || noTime || isCompleted || isFuture;
@@ -1497,7 +1553,7 @@
       else if (noTime) { btn.textContent = 'Not enough time (' + sprintMins(sprint) + 'm)'; }
       else { btn.textContent = 'Activate sprint'; }
 
-      if (!isActive && !noTime && !isFuture) {
+      if (!isActive && !noTime && !isFuture && !isCompleted) {
         btn.addEventListener('click', () => { openMissionBriefing(sprint); });
       }
       card.appendChild(btn);
@@ -1669,6 +1725,18 @@
       badge.className = 'status-badge ' + statusClass(cs.status);
       badge.textContent = statusLabel(cs.status);
 
+      const saveLibBtn = document.createElement('button');
+      saveLibBtn.textContent = '⊕';
+      saveLibBtn.title = 'Save to Library';
+      saveLibBtn.style.cssText = 'background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;line-height:1;padding:0 2px;';
+      saveLibBtn.addEventListener('click', () => {
+        const preset = { id: genId(), name: cs.name, tasks: cs.tasks.map(t => ({ ...t, id: genId() })) };
+        const existing = sprintLibrary.findIndex(s => s.name === cs.name);
+        if (existing > -1) sprintLibrary[existing] = preset; else sprintLibrary.push(preset);
+        save();
+        toast('"' + cs.name + '" saved to Library');
+      });
+
       const delBtn = document.createElement('button');
       delBtn.textContent = '×';
       delBtn.title = 'Remove';
@@ -1678,7 +1746,7 @@
         save(); renderCompleted();
       });
 
-      right.append(badge, delBtn);
+      right.append(badge, saveLibBtn, delBtn);
       head.append(nm, right);
       card.appendChild(head);
       list.appendChild(card);
@@ -1694,6 +1762,7 @@
 
   // Auto-trigger mission briefing for calendar-scheduled sprints at their scheduled time
   let missionSnoozedUntil = {}; // sprintId -> real timestamp (ms) until which we won't re-prompt after a dismiss
+  const MAX_OVERDUE_AUTOTRIGGER_H = 3; // stop auto-prompting this many hours past the scheduled time
 
   function checkAutoTrigger() {
     const now = new Date();
@@ -1712,7 +1781,13 @@
       // Fire as soon as it's due — or overdue. A narrow live-only window
       // silently misses anything scheduled while the device/tab wasn't
       // actively running JS (asleep overnight, backgrounded, etc.), which
-      // is exactly when a 4am wake-up sprint needs it most.
+      // is exactly when a 4am wake-up sprint needs it most. But this can't
+      // run forever: without a cutoff, a sprint you scheduled and simply
+      // never got to would keep popping the mission briefing unprompted for
+      // the rest of the day, hours after its moment has obviously passed.
+      // It's still startable manually any time via "Activate sprint" — this
+      // only stops the automatic nag once it's clearly moot.
+      if (diff > MAX_OVERDUE_AUTOTRIGGER_H) return;
       if (pendingSprintId === sprint.id && document.getElementById('confirm-overlay').classList.contains('open')) return; // already showing
       if (missionSnoozedUntil[sprint.id] && nowMs < missionSnoozedUntil[sprint.id]) return; // recently dismissed
       openMissionBriefing(sprint);
@@ -1951,6 +2026,7 @@
   }
 
   function renderEvents() {
+    closeEventPopover(); // the block it was anchored to is about to be torn down and rebuilt
     const dates = getVisibleDates();
     document.querySelectorAll('.cal-col').forEach(col => {
       col.querySelectorAll('.event-block, .recovery-block').forEach(el => el.remove());
@@ -2001,7 +2077,7 @@
           ? '<div class="event-name">' + (ev.repeat ? '<span class="repeat-mark">↻</span>' : '') + ev.name + '</div>'
           : '';
         if (ev.type === 'evt' && !ev.sprintId) {
-          block.addEventListener('click', (e) => { e.stopPropagation(); openEventEdit(ev.baseRef, ev.occDate); });
+          block.addEventListener('click', (e) => { e.stopPropagation(); openEventPopover(ev.baseRef, ev.occDate, block); });
         }
         col.appendChild(block);
 
@@ -2080,12 +2156,61 @@
   let editingEventId = null;   // set when editing an existing plain calendar Event (not a sprint)
   let qcMode = 'sprint';  // 'sprint' | 'event' — only meaningful while scheduleCtx is set
   let editingEventOccDate = null; // which single occurrence date was clicked, for a repeating event
+  let sprintScheduleEnabled = false; // "Give this a start time" toggle state, Sprint mode only
 
   function hToTimeInputValue(h) {
     let hh = Math.floor(h), mm = Math.round((h - hh) * 60);
     if (mm === 60) { mm = 0; hh = (hh + 1) % 24; }
     return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
   }
+
+  // Rounds "right now" up to the next quarter hour — a sane default when a
+  // sprint is being given a start time for the first time.
+  function nextQuarterHourFromNow() {
+    const n = new Date();
+    const totalMin = n.getHours() * 60 + n.getMinutes();
+    const rounded = Math.ceil(totalMin / 15) * 15;
+    return Math.min(23.75, rounded / 60);
+  }
+
+  // Turns the optional Sprint scheduling toggle on/off. `sprint` supplies
+  // the existing date/time to prefill when editing an already-scheduled
+  // sprint; pass null for a brand new one (defaults to today, next quarter
+  // hour).
+  function setSprintScheduleEnabled(on, sprint) {
+    sprintScheduleEnabled = on;
+    document.getElementById('sprint-schedule-toggle').checked = on;
+    document.getElementById('sprint-schedule-toggle-label').classList.toggle('active', on);
+    if (on) {
+      const date   = (sprint && sprint.date) || todayStr();
+      const startH = (sprint && sprint.scheduledH !== undefined) ? sprint.scheduledH : nextQuarterHourFromNow();
+      qcDatetimeAnchor = { startH, date };
+      qcStartEditable = true;
+      document.getElementById('qc-datetime').style.display = 'flex';
+      document.getElementById('qc-date-label').style.display = 'none';
+      document.getElementById('qc-date-input').style.display = '';
+      document.getElementById('qc-date-input').min = todayStr();
+      document.getElementById('qc-date-input').value = date;
+      document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(date));
+      updateQcDatetimeDisplay();
+    } else {
+      qcDatetimeAnchor = null;
+      document.getElementById('qc-datetime').style.display = 'none';
+      document.getElementById('qc-date-label').style.display = '';
+      document.getElementById('qc-date-input').style.display = 'none';
+    }
+  }
+
+  document.getElementById('sprint-schedule-toggle-label').addEventListener('click', (e) => {
+    e.preventDefault();
+    setSprintScheduleEnabled(!sprintScheduleEnabled, null);
+  });
+
+  document.getElementById('qc-date-input').addEventListener('change', function() {
+    if (!qcDatetimeAnchor || !this.value) return;
+    qcDatetimeAnchor.date = this.value;
+    document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(this.value));
+  });
 
   function resetQuickCreateUI() {
     scheduleCtx = null;
@@ -2094,13 +2219,19 @@
     editingEventId = null;
     editingEventOccDate = null;
     qcMode = 'sprint';
+    sprintScheduleEnabled = false;
     document.getElementById('qc-tabs').style.display = 'none';
     document.getElementById('qc-datetime').style.display = 'none';
+    document.getElementById('qc-date-label').style.display = '';
+    document.getElementById('qc-date-input').style.display = 'none';
     document.getElementById('qc-start-input').style.display = 'none';
     document.getElementById('qc-desc').style.display = 'none';
     document.getElementById('qc-desc').value = '';
     document.getElementById('qc-repeat').style.display = 'none';
     resetRepeatUI();
+    document.getElementById('sprint-schedule-toggle-label').style.display = 'none';
+    document.getElementById('sprint-schedule-toggle-label').classList.remove('active');
+    document.getElementById('sprint-schedule-toggle').checked = false;
     document.getElementById('modal-tasks').style.display = '';
     document.getElementById('modal-add-task').style.display = '';
     document.getElementById('modal-right').style.display = '';
@@ -2232,6 +2363,7 @@
     if (!qcDatetimeAnchor) return;
     const label = document.getElementById('qc-time-label');
     const startInput = document.getElementById('qc-start-input');
+    const endInput = document.getElementById('qc-end-input');
 
     if (qcStartEditable) {
       startInput.style.display = '';
@@ -2241,9 +2373,20 @@
     }
     const startPrefix = qcStartEditable ? '– ' : formatTimePretty(qcDatetimeAnchor.startH) + ' – ';
 
+    // Events (once editable — i.e. editing an existing one, not freshly
+    // dragged out) get a real end-time input instead of a static label, so
+    // the end can actually be changed instead of only ever the start.
+    const endEditable = qcStartEditable && qcMode === 'event';
+    endInput.style.display = endEditable ? '' : 'none';
+
     if (qcMode === 'event' || !modalTasks.length) {
       const endH = qcDatetimeAnchor.endH !== undefined ? qcDatetimeAnchor.endH : qcDatetimeAnchor.startH;
-      label.textContent = startPrefix + formatTimePretty(endH);
+      if (endEditable) {
+        endInput.value = hToTimeInputValue(endH);
+        label.textContent = startPrefix;
+      } else {
+        label.textContent = startPrefix + formatTimePretty(endH);
+      }
       return;
     }
     let cursor = qcDatetimeAnchor.startH;
@@ -2257,6 +2400,20 @@
     const [hh, mm] = this.value.split(':').map(Number);
     if (isNaN(hh)) return;
     qcDatetimeAnchor.startH = hh + (mm || 0) / 60;
+    // Keep at least a 15-minute span if the start just moved past the end.
+    if (qcDatetimeAnchor.endH !== undefined && qcDatetimeAnchor.endH <= qcDatetimeAnchor.startH) {
+      qcDatetimeAnchor.endH = qcDatetimeAnchor.startH + 0.25;
+    }
+    updateQcDatetimeDisplay();
+  });
+
+  document.getElementById('qc-end-input').addEventListener('input', function() {
+    if (!qcDatetimeAnchor || !this.value) return;
+    const [hh, mm] = this.value.split(':').map(Number);
+    if (isNaN(hh)) return;
+    let endH = hh + (mm || 0) / 60;
+    if (endH <= qcDatetimeAnchor.startH) endH = qcDatetimeAnchor.startH + 0.25; // keep a sane minimum span
+    qcDatetimeAnchor.endH = endH;
     updateQcDatetimeDisplay();
   });
 
@@ -2275,8 +2432,14 @@
     qcDatetimeAnchor = ctx;
     document.getElementById('qc-tabs').style.display = 'flex';
     document.getElementById('qc-datetime').style.display = 'flex';
+    document.getElementById('qc-date-input').style.display = 'none'; // fixed by which column was dragged — drag a different one to change it
+    document.getElementById('qc-date-label').style.display = '';
     document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(ctx.date));
     resetRepeatUI();
+
+    // Already has real scheduling info from the drag — the "give this a
+    // start time" toggle only applies to sprints that don't have one yet.
+    document.getElementById('sprint-schedule-toggle-label').style.display = 'none';
 
     setQcMode('sprint'); // also triggers the initial time-label render
     document.getElementById('modal-overlay').classList.add('open');
@@ -2290,16 +2453,13 @@
     document.getElementById('modal-tasks').innerHTML = '';
     document.getElementById('modal-sprint-name').value = sprint ? sprint.name : '';
 
-    // If this sprint has real scheduling info (created via drag-to-create),
-    // show its date/time row read-only — same display as at creation time,
-    // live-updating as tasks are edited — without touching scheduleCtx,
-    // which is reserved for "Save should create a brand-new sprint".
-    if (sprint && sprint.date && sprint.scheduledH !== undefined) {
-      qcDatetimeAnchor = { startH: sprint.scheduledH, date: sprint.date };
-      qcStartEditable = true;
-      document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(sprint.date));
-      document.getElementById('qc-datetime').style.display = 'flex';
-    }
+    // Scheduling a Sprint is always optional here (unlike drag-to-create,
+    // which already fixes a date/time by definition) — the toggle lets an
+    // unscheduled one be given a start time, or an already-scheduled one be
+    // moved to a different day/time, or unscheduled again entirely.
+    document.getElementById('sprint-schedule-toggle-label').style.display = '';
+    const hasSchedule = !!(sprint && sprint.date && sprint.scheduledH !== undefined);
+    setSprintScheduleEnabled(hasSchedule, sprint);
 
     document.getElementById('modal-overlay').classList.add('open');
     if (sprint) sprint.tasks.forEach(t => addModalRow(t.name, t.dur, t.period, t.type));
@@ -2311,6 +2471,48 @@
   // normal calendar event can be. `ev` is always the real base object (never
   // a virtual occurrence copy); `occDate` is the specific day that was
   // clicked, which matters when `ev` is a repeating series.
+  // Lightweight tap-to-peek preview — shows name/time/description without
+  // committing to the full edit dialog, which the description textarea
+  // otherwise required opening just to read.
+  function openEventPopover(ev, occDate, blockEl) {
+    const pop = document.getElementById('event-popover');
+    document.getElementById('event-popover-title').textContent = ev.name + (ev.repeat ? ' ↻' : '');
+    const endH = ev.startH + ev.dur / 60;
+    document.getElementById('event-popover-time').textContent = formatTimePretty(ev.startH) + ' – ' + formatTimePretty(endH);
+    const descEl = document.getElementById('event-popover-desc');
+    if (ev.desc) { descEl.textContent = ev.desc; descEl.classList.remove('empty'); }
+    else { descEl.textContent = 'No description'; descEl.classList.add('empty'); }
+
+    pop.style.display = 'block';
+    const rect = blockEl.getBoundingClientRect();
+    const popW = pop.offsetWidth || 220, popH = pop.offsetHeight || 100;
+    let left = rect.right + 8;
+    if (left + popW > window.innerWidth - 8) left = rect.left - popW - 8;
+    if (left < 8) left = Math.min(rect.left, window.innerWidth - popW - 8);
+    let top = rect.top;
+    if (top + popH > window.innerHeight - 8) top = window.innerHeight - popH - 8;
+    pop.style.left = Math.max(8, left) + 'px';
+    pop.style.top  = Math.max(8, top) + 'px';
+
+    document.getElementById('event-popover-edit').onclick = (e) => {
+      e.stopPropagation();
+      closeEventPopover();
+      openEventEdit(ev, occDate);
+    };
+  }
+
+  function closeEventPopover() {
+    document.getElementById('event-popover').style.display = 'none';
+  }
+
+  document.addEventListener('click', (e) => {
+    const pop = document.getElementById('event-popover');
+    if (pop.style.display !== 'none' && !pop.contains(e.target) && !e.target.closest('.event-block')) {
+      closeEventPopover();
+    }
+  });
+  document.getElementById('cal-scroll-wrap').addEventListener('scroll', closeEventPopover);
+
   function openEventEdit(ev, occDate) {
     resetQuickCreateUI();
     editingEventId = ev.id;
@@ -2391,7 +2593,12 @@
       if (ev) {
         ev.name = name;
         ev.desc = document.getElementById('qc-desc').value.trim() || undefined;
-        if (qcDatetimeAnchor) ev.startH = qcDatetimeAnchor.startH;
+        if (qcDatetimeAnchor) {
+          ev.startH = qcDatetimeAnchor.startH;
+          if (qcDatetimeAnchor.endH !== undefined) {
+            ev.dur = Math.max(15, Math.round((qcDatetimeAnchor.endH - qcDatetimeAnchor.startH) * 60));
+          }
+        }
         ev.period = periodForHour(ev.startH);
         // Repeat settings apply to the whole series, not just the clicked
         // occurrence — exdates (individually-removed days) are left as-is.
@@ -2474,18 +2681,28 @@
         sprintObj.tasks = tasksCopy;
         savedSprint = sprintObj;
 
-        // If this sprint was created via drag-to-create (has real scheduling
-        // info) and isn't currently running, its calendar events are stale
-        // the moment tasks/durations (or the start time itself) change —
-        // rebuild them from scratch so the edit actually shows on the calendar.
-        if (!activeSprints.has(sprintObj.id) && sprintObj.scheduledH !== undefined && sprintObj.date) {
-          if (qcDatetimeAnchor) sprintObj.scheduledH = qcDatetimeAnchor.startH; // picks up a moved start time
-          events = events.filter(ev => ev.sprintId !== sprintObj.id);
-          let cursor = sprintObj.scheduledH;
-          tasksCopy.forEach(t => {
-            events.push({ id: genId(), sprintId: sprintObj.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date: sprintObj.date });
-            cursor += packedDurMin(t.dur) / 60;
-          });
+        // Scheduling is optional and toggle-driven here — never touch it
+        // while the sprint is actually running (its calendar times would
+        // desync), which matches the guard already in place before Edit
+        // can even be opened on an active sprint.
+        if (!activeSprints.has(sprintObj.id)) {
+          if (sprintScheduleEnabled && qcDatetimeAnchor) {
+            sprintObj.date       = qcDatetimeAnchor.date;
+            sprintObj.scheduledH = qcDatetimeAnchor.startH;
+            if (sprintObj.recoveryMins === undefined) sprintObj.recoveryMins = 10;
+            events = events.filter(ev => ev.sprintId !== sprintObj.id);
+            let cursor = sprintObj.scheduledH;
+            tasksCopy.forEach(t => {
+              events.push({ id: genId(), sprintId: sprintObj.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date: sprintObj.date });
+              cursor += packedDurMin(t.dur) / 60;
+            });
+          } else if (!sprintScheduleEnabled && sprintObj.date !== undefined) {
+            // Toggle was switched off — this sprint goes back to being
+            // unscheduled, so it comes off the calendar entirely.
+            delete sprintObj.date;
+            delete sprintObj.scheduledH;
+            events = events.filter(ev => ev.sprintId !== sprintObj.id);
+          }
         }
       }
       const libIdx = sprintLibrary.findIndex(s => s.id === editingSprintId);
@@ -2498,10 +2715,20 @@
       else sprintLibrary.push(savedSprint);
       toast('"' + name + '" saved to Library');
     } else {
-      // New sprint → Today's Sprints only
+      // New sprint → Today's Sprints, optionally given a start time
       savedSprint = { id: genId(), name, tasks: tasksCopy };
+      if (sprintScheduleEnabled && qcDatetimeAnchor) {
+        savedSprint.date         = qcDatetimeAnchor.date;
+        savedSprint.scheduledH   = qcDatetimeAnchor.startH;
+        savedSprint.recoveryMins = 10;
+        let cursor = savedSprint.scheduledH;
+        tasksCopy.forEach(t => {
+          events.push({ id: genId(), sprintId: savedSprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date: savedSprint.date });
+          cursor += packedDurMin(t.dur) / 60;
+        });
+      }
       sprints.push(savedSprint);
-      toast('"' + name + '" added to Today\'s Sprints');
+      toast('"' + name + '" added to Today\'s Sprints' + (sprintScheduleEnabled ? ', scheduled for ' + formatTimePretty(savedSprint.scheduledH) : ''));
     }
 
     save(); renderSprints(); renderEvents(); closeModal();
@@ -2814,7 +3041,15 @@
       const dot = document.createElement('div'); dot.className = 'lib-dot'; dot.style.background = dotColor(item.period, item.type);
       const nm  = document.createElement('span'); nm.className = 'lib-name'; nm.textContent = item.name;
       const dur = document.createElement('span'); dur.className = 'lib-dur'; dur.textContent = item.dur + 'm';
-      row.append(dot, nm, dur);
+      const del = document.createElement('button'); del.className = 'lib-item-del'; del.textContent = '×'; del.title = 'Remove from library';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        library = library.filter(l => l !== item);
+        saveLS('sprint_library', library);
+        buildLibrary();
+        toast('"' + item.name + '" removed from task library');
+      });
+      row.append(dot, nm, dur, del);
       row.addEventListener('click', () => { addModalRow(item.name, item.dur, item.period, item.type); toast('"' + item.name + '" added'); });
       el.appendChild(row);
     });
