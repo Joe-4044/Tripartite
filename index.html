@@ -62,9 +62,20 @@
     if (isFirstSync) {
       window._fsInitialSyncDone = true;
       if (hadRemoteData) {
-        // Remote already had data — it's authoritative. Drop any stale
-        // pre-sync local push so it can't overwrite what we just applied.
-        window._fsPendingPush = null;
+        // We just applied (or rejected, via the timestamp check in
+        // _fsApply) the remote snapshot. If a local edit was queued before
+        // sync finished, only push it now if it's actually newer than what
+        // we received — otherwise it's a stale pre-sync snapshot of state
+        // that's already been superseded, and pushing it would undo the
+        // fresher data we just applied.
+        const remoteSavedAt = snap.data().savedAt || 0;
+        if (window._fsPendingPush && window._fsPendingPush.savedAt > remoteSavedAt) {
+          const pending = window._fsPendingPush;
+          window._fsPendingPush = null;
+          window.fsPush(pending);
+        } else {
+          window._fsPendingPush = null;
+        }
       } else if (window._fsPendingPush) {
         // No remote doc existed yet (brand new setup) — seed it with local state.
         const pending = window._fsPendingPush;
@@ -158,6 +169,10 @@
   .right { display: none; flex-direction: column; background: var(--bg); }
   .left-header { padding: 16px 16px 12px; border-bottom: 1px solid var(--border2); flex-shrink: 0; }
   .left-eyebrow { font-size: 10px; letter-spacing: 0.12em; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
+  .sync-indicator { display: flex; align-items: center; gap: 4px; font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text3); opacity: 0.85; transition: opacity 0.3s; }
+  .sync-indicator.synced { opacity: 0; pointer-events: none; }
+  .sync-dot { width: 5px; height: 5px; border-radius: 50%; background: #e08a2a; animation: syncPulse 1.2s ease-in-out infinite; }
+  @keyframes syncPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 
   .studio-btn {
     width: 100%; display: flex; align-items: center; gap: 8px;
@@ -748,7 +763,10 @@
   <div class="left">
     <div class="left-header">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <div class="left-eyebrow" style="margin-bottom:0;">Sprint</div>
+        <div style="display:flex;align-items:center;gap:7px;">
+          <div class="left-eyebrow" style="margin-bottom:0;">Sprint</div>
+          <span class="sync-indicator" id="sync-indicator" title="Syncing with your other devices…"><span class="sync-dot"></span>Syncing</span>
+        </div>
         <button class="collapse-btn" id="collapse-btn" aria-label="Collapse sprint panel">▲</button>
       </div>
       <div class="header-btns" id="left-body-btns">
@@ -1091,6 +1109,11 @@
   let editingLibrary   = false;
   let pausedSprints    = new Set(loadLS('sprint_paused', []));  // paused sprint ids
   let pausedAt         = loadLS('sprint_paused_at', {});        // {sprintId: pauseTimeH}
+  // Real timestamp (not a calendar-day string) of the freshest state this
+  // device has actually saved-or-applied. Used to stop an older write from
+  // ever clobbering a newer one, regardless of which device's write happens
+  // to reach Firestore last — see _fsApply().
+  let lastAppliedAt    = loadLS('sprint_last_synced_at', 0);
 
   function loadLS(k, d) { try { const v = localStorage.getItem(k); return v !== null ? JSON.parse(v) : d; } catch { return d; } }
   function saveLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
@@ -1106,6 +1129,12 @@
     saveLS('sprint_paused_at',  pausedAt);
     saveLS('sprint_date',       todayStr());
 
+    // A save from THIS device is, by definition, the freshest thing it
+    // knows about right now — record that so a stale remote echo (or a
+    // genuinely older write from another device) can never overwrite it.
+    lastAppliedAt = Date.now();
+    saveLS('sprint_last_synced_at', lastAppliedAt);
+
     // Push to Firestore
     if (window.fsPush) {
       window.fsPush({
@@ -1119,6 +1148,7 @@
         pausedSprints:    [...pausedSprints],
         pausedAt,
         date:             todayStr(),
+        savedAt:          lastAppliedAt,
       });
     }
   }
@@ -1693,6 +1723,25 @@
   setInterval(checkAutoTrigger, 30000);
   setInterval(() => { if (pausedSprints.size) renderEvents(); }, 15000);
   setInterval(() => { if ([...activeSprints].some(id => !pausedSprints.has(id))) renderSprints(); }, 1000);
+
+  // A tab left open across midnight never naturally re-runs dailyReset() —
+  // it only ever ran once, at page load. Without this, a long-lived tab
+  // could keep pushing yesterday's un-reset sprints/events to Firestore
+  // stamped with today's date (todayStr() is computed fresh on every save),
+  // which — combined with another device's genuinely fresh "today" — is
+  // exactly the kind of same-day-but-stale write the timestamp guard in
+  // _fsApply() exists to catch. Checking every minute catches the rollover
+  // promptly without needing a full reload.
+  setInterval(() => {
+    if (loadLS('sprint_date', null) !== todayStr()) {
+      dailyReset();
+      setupCalendar();
+      setupDragToCreate();
+      renderSprints();
+      renderEvents();
+      renderCompleted();
+    }
+  }, 60000);
 
   /* ── MISSION BRIEFING ── */
   const DIFFICULTY_WEIGHTS = { hb: 3, anchor: 2, med: 1, low: 0.5, brk: 0 };
@@ -2775,6 +2824,23 @@
   window._fsApply = function(d) {
     if (!d) return;
 
+    // The core fix: never let an older write clobber a newer one. The old
+    // guard here only checked "is this remote save dated today" — but that's
+    // a per-CALENDAR-DAY check, not a real recency check, so two devices
+    // saving on the same day would just blindly overwrite whichever one's
+    // write happened to land in Firestore last, no matter which one was
+    // actually more current. This is what made opening a second device
+    // wipe out work from the first: the second device's very first local
+    // save (or its own stale, not-yet-merged state) could reach Firestore
+    // and stomp a device that had genuinely newer edits.
+    //
+    // Now every save carries a real timestamp, and a device simply refuses
+    // to apply anything older than the freshest state it already has.
+    const incomingAt = d.savedAt || 0;
+    if (incomingAt <= lastAppliedAt) return; // we already have this, or something newer
+    lastAppliedAt = incomingAt;
+    saveLS('sprint_last_synced_at', lastAppliedAt);
+
     let changed = false;
 
     // These aren't tied to "today" — always mirror regardless of date
@@ -2782,9 +2848,12 @@
     if (d.uid !== undefined && d.uid > uid) uid = d.uid;
 
     // Daily-scoped data only mirrors if the remote save is from the SAME
-    // calendar day as this device. Otherwise a device that hasn't rolled
-    // over to the new day yet (e.g. still open from last night) could
-    // overwrite a freshly-built "today" with yesterday's state.
+    // calendar day as this device. This is a SEPARATE guard from the
+    // timestamp check above — it exists so a device that's still on
+    // yesterday (tab left open overnight, not yet rolled over) can't push
+    // yesterday's sprints back onto a device that's already moved on to
+    // today, even though that stale write might technically have a newer
+    // clock timestamp.
     const sameDay = d.date === todayStr();
     if (sameDay) {
       if (d.sprints !== undefined)          { sprints = d.sprints; changed = true; }
@@ -2816,6 +2885,13 @@
       const { getFirestore, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
       // Data already loaded via onSnapshot — no extra fetch needed
     } catch(e) {}
+  };
+
+  // First real snapshot has been received AND applied — safe to tell the
+  // user this device is caught up with everything the others have saved.
+  window._fsOnSynced = function() {
+    const el = document.getElementById('sync-indicator');
+    if (el) el.classList.add('synced');
   };
 
   /* ── INIT ── */
