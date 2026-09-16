@@ -438,10 +438,18 @@
   .qc-tab.active { background: #1a1f2a; color: #6a92af; }
   html.light .qc-tab.active { background: #e8f0f8; color: #2a6090; }
 
-  /* Quick-create date/time row */
+  /* Quick-create date/time row — the date and the start–end time pair are
+     each their own inline group, so on mobile they can stack as two clean
+     rows (date on its own line, start–end together) instead of leaving
+     four separate fields to wrap wherever they happen to run out of room. */
   .qc-datetime {
-    display: flex; align-items: center; gap: 8px; row-gap: 6px;
+    display: flex; align-items: center; gap: 14px; row-gap: 8px;
     font-size: 13px; color: var(--text2); flex-wrap: wrap;
+  }
+  .qc-datetime-date, .qc-datetime-time { display: flex; align-items: center; gap: 8px; }
+  .qc-dt-input {
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: inherit; font-size: 12px; padding: 3px 6px; outline: none;
   }
 
   /* Repeat control (Event mode) */
@@ -462,7 +470,7 @@
     color: var(--text); font-family: inherit; font-size: 12px; padding: 4px 8px; outline: none; color-scheme: dark;
   }
   html.light .qc-repeat-date { color-scheme: light; }
-  html.light #qc-date-input { color-scheme: light; }
+  html.light #qc-date-input, html.light #qc-start-input, html.light #qc-end-input { color-scheme: light; }
   .qc-repeat-until-label { font-size: 12px; color: var(--text3); }
   .qc-repeat-weekdays { display: flex; gap: 5px; }
   .qc-wd {
@@ -745,9 +753,20 @@
        reliably zoom back out — every text/date/time/number field the
        person actually types or taps into needs to clear that threshold. */
     .mt-name, .mt-dur, .qc-desc, .qc-repeat-select, .qc-repeat-num,
-    .qc-repeat-date, #qc-date-input, #qc-start-input, #qc-end-input {
+    .qc-repeat-date, .qc-dt-input {
       font-size: 16px !important;
     }
+
+    /* Date gets its own full-width row; start–end share the row below —
+       a deliberate two-row layout instead of leaving four separate fields
+       (icon, date, start, end) to wrap wherever they happen to run out of
+       horizontal room, which just looked broken on an actual phone: native
+       Android date/time pickers render wide, so the row would wrap between
+       date and start, and again between start and end, overlapping the
+       tail of "end" against whatever came next. */
+    .qc-datetime { flex-direction: column; align-items: stretch; gap: 10px; }
+    .qc-datetime-date, .qc-datetime-time { width: 100%; }
+    .qc-dt-input { flex: 1; min-height: 40px; padding: 8px 10px; text-align: center; }
 
     /* A hover-revealed delete button is unreachable with a finger — there's
        no hover state to reveal it. Keep it visible (dimmed, not competing
@@ -922,15 +941,15 @@
 
       <!-- Date / time row — shown for anything with real scheduling info -->
       <div class="qc-datetime" id="qc-datetime" style="display:none;">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:0.6;">
-          <circle cx="7.5" cy="7.5" r="6.3" stroke="currentColor" stroke-width="1.1"/>
-          <path d="M7.5 4V7.5L9.8 9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-        </svg>
-        <span id="qc-date-label">Monday, September 7</span>
-        <input type="date" id="qc-date-input" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;padding:3px 6px;outline:none;color-scheme:dark;" />
-        <input type="time" id="qc-start-input" style="display:none;margin-left:8px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;padding:3px 6px;outline:none;" />
-        <span id="qc-time-label" style="margin-left:8px;color:var(--text3);"></span>
-        <input type="time" id="qc-end-input" style="display:none;margin-left:4px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;padding:3px 6px;outline:none;" />
+        <div class="qc-datetime-date">
+          <span id="qc-date-label">Monday, September 7</span>
+          <input type="date" id="qc-date-input" class="qc-dt-input" style="display:none;color-scheme:dark;" />
+        </div>
+        <div class="qc-datetime-time">
+          <input type="time" id="qc-start-input" class="qc-dt-input" style="display:none;color-scheme:dark;" />
+          <span id="qc-time-label" style="color:var(--text3);"></span>
+          <input type="time" id="qc-end-input" class="qc-dt-input" style="display:none;color-scheme:dark;" />
+        </div>
       </div>
 
       <!-- Repeat control — Events only; hidden in Sprint mode -->
