@@ -31,33 +31,67 @@
 
   // Expose sync functions to global scope for the main script
   window._fsReady = false;
-  window._fsIgnoreNext = false;       // prevent echo when we write
   window._fsInitialSyncDone = false;  // true once we've received the FIRST real snapshot
   window._fsPendingPush = null;       // holds the latest local save() attempted before sync completed
 
   // Push local state to Firestore — blocked until initial sync completes,
   // to avoid overwriting fresher remote data with stale local data on load.
+  window._fsLastFailedPush = null; // the most recent push that didn't make it out — kept around so it can actually be retried, not just complained about
+  window._fsPushFailing    = false; // true from the first failure until one finally succeeds — keeps repeated failures from spamming a toast every retry
+
   window.fsPush = async function(data) {
     if (!window._fsInitialSyncDone) {
       window._fsPendingPush = data; // remember the latest attempt, flush once ready
       return;
     }
     try {
-      window._fsIgnoreNext = true;
       await setDoc(DATA_DOC, data, { merge: true });
-    } catch(e) { console.warn('Firestore write failed', e); }
+      window._fsLastFailedPush = null;
+      if (window._fsPushFailing) {
+        window._fsPushFailing = false;
+        if (window._fsOnPushRecovered) window._fsOnPushRecovered();
+      }
+    } catch(e) {
+      console.warn('Firestore write failed', e);
+      window._fsLastFailedPush = data; // always the LATEST attempt — if more edits happened while offline, retry picks up the newest one, not a stale one
+      if (!window._fsPushFailing) {
+        window._fsPushFailing = true;
+        if (window._fsOnPushFailed) window._fsOnPushFailed();
+      }
+    }
   };
 
-  // Listen for remote changes and apply them
+  // Actually retry a failed push — on the browser's own signal that
+  // connectivity is back, and on a periodic backstop in case that signal
+  // doesn't fire reliably (common enough on mobile). Whichever fires first
+  // calls fsPush again with the same (or, if something changed in the
+  // meantime, the newer) pending data.
+  window.addEventListener('online', () => {
+    if (window._fsLastFailedPush) window.fsPush(window._fsLastFailedPush);
+  });
+  setInterval(() => {
+    if (window._fsLastFailedPush) window.fsPush(window._fsLastFailedPush);
+  }, 30000);
+
+  // Listen for remote changes and apply them. There used to be a
+  // window._fsIgnoreNext flag here to skip re-applying a write's own echo
+  // — but it was a single global boolean with no way to tell "this
+  // snapshot is confirming MY write" from "this snapshot is someone
+  // else's write that just happened to land while my flag was set". A
+  // genuine concurrent update from another device could get silently
+  // swallowed in that window. It's not needed anyway: _fsApply()'s own
+  // timestamp check already rejects an echo of your own write correctly
+  // and precisely (the echoed savedAt exactly matches what you just
+  // recorded as lastAppliedAt when you saved it), with no race at all —
+  // so every snapshot just goes through the same one path now.
   onSnapshot(DATA_DOC, (snap) => {
     const isFirstSync    = !window._fsInitialSyncDone;
     const hadRemoteData  = snap.exists();
 
-    if (hadRemoteData && !window._fsIgnoreNext) {
+    if (hadRemoteData) {
       const d = snap.data();
       if (window._fsApply) window._fsApply(d);
     }
-    if (window._fsIgnoreNext) window._fsIgnoreNext = false;
 
     if (isFirstSync) {
       window._fsInitialSyncDone = true;
@@ -337,13 +371,27 @@
   .activate-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
   /* ── LEFT FOOTER ── */
-  .left-footer { padding: 12px 16px; border-top: 1px solid var(--border2); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
+  .left-footer { padding: 12px 16px; border-top: 1px solid var(--border2); flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+  .left-footer-row { display: flex; align-items: center; justify-content: space-between; }
+  .left-footer-link { background: none; border: none; color: var(--text3); font-size: 10px; letter-spacing: 0.05em; font-family: inherit; text-align: left; cursor: pointer; padding: 2px 0 0; }
+  .left-footer-link:hover { color: var(--text2); }
+  .backup-item { padding: 10px 11px; border: 1px solid var(--border2); border-radius: 8px; margin-bottom: 8px; }
+  .backup-item-time { font-size: 12px; color: var(--text); font-weight: 500; margin-bottom: 2px; }
+  .backup-item-meta { font-size: 10px; color: var(--text3); margin-bottom: 8px; }
+  .backup-item-restore { background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text2); font-size: 11px; font-family: inherit; padding: 5px 11px; cursor: pointer; }
+  .backup-item-restore:hover { color: var(--text); background: var(--border); }
   .left-footer-label { font-size: 11px; color: var(--text3); }
   .theme-toggle { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
   .toggle-track { width: 32px; height: 18px; border-radius: 9px; background: var(--toggle-bg); border: 1px solid var(--border); position: relative; transition: background 0.2s; flex-shrink: 0; }
   html.light .toggle-track { background: #4a7c59; border-color: #4a7c59; }
   .toggle-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--toggle-knob); transition: transform 0.2s, background 0.2s; }
   html.light .toggle-knob { transform: translateX(14px); background: #fff; }
+  /* Reminders toggle drives its own on/off state via a class, independent
+     of the theme toggle above (which is tied to the global html.light
+     class and would otherwise flip both toggles together). */
+  #reminders-toggle.on .toggle-track { background: #2a5a3a; border-color: #2a5a3a; }
+  html.light #reminders-toggle.on .toggle-track { background: #4a7c59; border-color: #4a7c59; }
+  #reminders-toggle.on .toggle-knob { transform: translateX(14px); background: #fff; }
 
   /* ── RIGHT CALENDAR ── */
   .cal-toolbar { display: flex; align-items: center; justify-content: flex-end; padding: 9px 12px; border-bottom: 1px solid var(--border2); flex-shrink: 0; }
@@ -571,6 +619,22 @@
   .event-popover-actions { display: flex; justify-content: flex-end; }
   .event-popover-actions button { background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text2); font-size: 11px; padding: 4px 12px; cursor: pointer; font-family: inherit; }
   .event-popover-actions button:hover { color: var(--text); background: var(--border); }
+
+  /* Accent color — a small swatch picker shared between sprint task rows
+     and the event editor, plus the left-edge stripe it produces wherever
+     that task/event actually renders (calendar block, sprint-list pill). */
+  .accent-swatch-btn { position: relative; }
+  .accent-swatch-btn .accent-dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--text3); box-sizing: border-box; }
+  .accent-swatch-btn.has-accent .accent-dot { border-color: transparent; }
+  .accent-picker { position: fixed; z-index: 70; background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 8px; display: none; flex-wrap: wrap; gap: 6px; width: 128px; box-shadow: 0 8px 28px rgba(0,0,0,0.4); }
+  .accent-picker.open { display: flex; }
+  .accent-swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+  .accent-swatch:hover { transform: scale(1.1); }
+  .accent-swatch.selected { border-color: var(--text); }
+  .accent-swatch.accent-none { background: var(--card); border: 1.5px dashed var(--text3); position: relative; }
+  .accent-swatch.accent-none::after { content: ''; position: absolute; left: 3px; right: 3px; top: 50%; height: 1.5px; background: var(--text3); transform: rotate(-45deg); }
+
+  .event-block.has-accent, .task-pill.has-accent { border-left-width: 3px !important; }
 
   /* ── MISSION BRIEFING ── */
   .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
@@ -874,11 +938,36 @@
         <div class="library-panel-scroll" id="library-sprint-list"></div>
       </div>
 
-      <div class="left-footer">
-        <span class="left-footer-label" id="theme-label">Dark mode</span>
-        <div class="theme-toggle" id="theme-toggle">
-          <div class="toggle-track"><div class="toggle-knob"></div></div>
+      <!-- BACKUPS VIEW — a local safety net: a snapshot is kept automatically
+           right before any remote sync would overwrite this device's sprints
+           and events, plus once a day regardless, so a bad sync (or any
+           other mishap) is a restore away instead of a dead end. -->
+      <div class="library-panel" id="backups-view">
+        <div class="library-panel-header">
+          <button class="library-panel-back" id="close-backups">← Back</button>
         </div>
+        <div class="library-panel-scroll" id="backups-list-wrap">
+          <p style="font-size:11px;color:var(--text3);padding:0 2px 10px;line-height:1.5;">
+            Snapshots taken automatically before a sync could overwrite this device's data, and once a day. Restoring replaces what's here now — for all synced devices, once they next connect.
+          </p>
+          <div id="backups-list"></div>
+        </div>
+      </div>
+
+      <div class="left-footer">
+        <div class="left-footer-row">
+          <span class="left-footer-label" id="theme-label">Dark mode</span>
+          <div class="theme-toggle" id="theme-toggle">
+            <div class="toggle-track"><div class="toggle-knob"></div></div>
+          </div>
+        </div>
+        <div class="left-footer-row">
+          <span class="left-footer-label" id="reminders-label">Reminders</span>
+          <div class="theme-toggle" id="reminders-toggle">
+            <div class="toggle-track"><div class="toggle-knob"></div></div>
+          </div>
+        </div>
+        <button class="left-footer-link" id="open-backups">Recent backups</button>
       </div>
     </div>
   </div>
@@ -915,6 +1004,10 @@
     <button id="event-popover-edit">Edit</button>
   </div>
 </div>
+
+<!-- ACCENT COLOR PICKER — shared popover: opened next to whichever swatch
+     button (task row, event editor) triggered it. -->
+<div class="accent-picker" id="accent-picker"></div>
 
 <!-- SPRINT STUDIO / QUICK CREATE -->
 <div class="modal-overlay" id="modal-overlay">
@@ -987,6 +1080,14 @@
           </select>
           <input type="date" id="qc-repeat-until" class="qc-repeat-date" style="display:none;" />
         </div>
+      </div>
+
+      <!-- Accent color — Events only; hidden in Sprint mode (sprints accent per-task instead) -->
+      <div class="qc-repeat-row" id="qc-accent-row" style="display:none;">
+        <span class="qc-repeat-until-label">Accent</span>
+        <button type="button" class="mt-ibtn accent-swatch-btn" id="qc-accent-btn" style="width:28px;height:28px;">
+          <span class="accent-dot" id="qc-accent-dot"></span>
+        </button>
       </div>
 
       <div class="modal-tasks" id="modal-tasks"></div>
@@ -1084,6 +1185,12 @@
   'use strict';
 
   const HOUR_PX = 64;
+  // How long a sprint stays tickable after its scheduled end before the
+  // verdict locks in. Without this, finishing the actual tasks a few
+  // minutes late (or on time, but not opening the app to tap them off
+  // immediately) could lock in "Fell Off" purely because the checkbox
+  // tap came after the clock ran out, not because the work didn't happen.
+  const DEFAULT_GRACE_MINS = 10;
   // Tiny visual floor so very short tasks (e.g. a 10-min break) stay visible.
   // This only nudges packing by a few px, never meaningfully misrepresents time.
   function packedDurMin(durMin) {
@@ -1341,6 +1448,11 @@
     const today    = todayStr();
     if (lastDate === today) return; // same day, no reset needed
 
+    // A day is about to turn over and drop whatever wasn't carried
+    // forward — worth a checkpoint of what the day actually looked like
+    // right before that happens, same safety net as the pre-sync one.
+    saveRecoverySnapshot('daily');
+
     // Close out any active sprints that never finished before the day ends —
     // this must be computed BEFORE clearing daily state below, since that
     // clear resets completedSprints for the fresh day.
@@ -1385,6 +1497,97 @@
   }
   document.getElementById('theme-toggle').addEventListener('click', () => { isLight = !isLight; saveLS('sprint_theme', isLight); applyTheme(); });
   applyTheme();
+
+  /* ── REMINDERS ──
+     Browser notifications for upcoming sprints/events, so the calendar
+     doesn't need to stay visibly open to be useful. Important limitation,
+     worth being upfront about: this only works while the app is actually
+     loaded somewhere — a background tab, or an installed PWA the OS hasn't
+     fully killed — same as any other page-driven timer. If the browser or
+     the installed app is genuinely closed, nothing fires. True
+     closed-app delivery needs push notifications from a real server, which
+     this app doesn't have (Firestore here is sync-only, not a push
+     backend) — this is the honest, achievable version of "remind me"
+     without standing up that infrastructure.
+  */
+  let remindersEnabled = loadLS('sprint_reminders_enabled', false);
+  const REMINDER_LEAD_MINS = 5;
+  const remindedThisSession = new Set(); // sprintId/occId we've already notified about — cleared on reload, which just risks an occasional repeat notification rather than a missed one
+
+  function applyRemindersUI() {
+    document.getElementById('reminders-toggle').classList.toggle('on', remindersEnabled);
+    document.getElementById('reminders-label').textContent = remindersEnabled ? 'Reminders on' : 'Reminders';
+  }
+  applyRemindersUI();
+
+  document.getElementById('reminders-toggle').addEventListener('click', async () => {
+    if (!('Notification' in window)) { toast('Notifications aren\u2019t supported in this browser'); return; }
+    if (remindersEnabled) {
+      remindersEnabled = false;
+      saveLS('sprint_reminders_enabled', false);
+      applyRemindersUI();
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      toast('Notifications are blocked — enable them for this site in your browser settings');
+      return;
+    }
+    const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Reminders need notification permission to work'); return; }
+    remindersEnabled = true;
+    saveLS('sprint_reminders_enabled', true);
+    applyRemindersUI();
+    toast('Reminders on — 5 minutes before each sprint or event');
+  });
+
+  function showReminder(title, body) {
+    const opts = { body, icon: 'icon-192.png', tag: title };
+    // Prefer the service worker's own notification path — more consistent
+    // on mobile, and keeps working the same way whether or not this tab
+    // currently has focus. Falls back to a plain page-level notification
+    // if there's no active service worker to hand it to.
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(reg => {
+        if (reg && reg.showNotification) reg.showNotification(title, opts);
+        else new Notification(title, opts);
+      }).catch(() => { try { new Notification(title, opts); } catch (e) {} });
+    } else {
+      try { new Notification(title, opts); } catch (e) {}
+    }
+  }
+
+  function checkReminders() {
+    if (!remindersEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+    const now  = new Date();
+    const nowH = now.getHours() + now.getMinutes() / 60;
+    const today = todayStr();
+    const leadH = REMINDER_LEAD_MINS / 60;
+
+    sprints.forEach(sprint => {
+      if (activeSprints.has(sprint.id)) return;
+      if (completedSprints.some(cs => cs.sprintId === sprint.id)) return;
+      if (sprint.scheduledH === undefined || sprint.date !== today) return;
+      const key = 'sprint:' + sprint.id;
+      if (remindedThisSession.has(key)) return;
+      const diff = sprint.scheduledH - nowH;
+      if (diff <= leadH && diff > -leadH) { // still catch it briefly after the window opens, in case a tick was missed
+        remindedThisSession.add(key);
+        showReminder(sprint.name, diff <= 0.017 ? 'Starting now' : 'Starting in ' + Math.round(diff * 60) + 'm');
+      }
+    });
+
+    // Plain events only — sprint-linked ones are already covered above,
+    // and would otherwise double-notify for the same block of time.
+    expandOccurrences(events, [today]).filter(ev => !ev.sprintId).forEach(ev => {
+      const key = 'event:' + ev.occId;
+      if (remindedThisSession.has(key)) return;
+      const diff = ev.startH - nowH;
+      if (diff <= leadH && diff > -leadH) {
+        remindedThisSession.add(key);
+        showReminder(ev.name, diff <= 0.017 ? 'Starting now' : 'Starting in ' + Math.round(diff * 60) + 'm');
+      }
+    });
+  }
 
   /* ── TOAST ── */
   const toastEl = document.getElementById('toast');
@@ -1514,7 +1717,8 @@
 
         pill.className = 'task-pill ' +
           (t.type === 'brk' ? 'pill-brk' : (isCounting ? pillClass(t.period, t.type) : 'pill-muted')) +
-          (isDone ? ' done' : '');
+          (isDone ? ' done' : '') + (t.accent ? ' has-accent' : '');
+        if (t.accent) pill.style.borderLeftColor = t.accent;
 
         const nameSpan = document.createElement('span');
         nameSpan.textContent = t.name;
@@ -1617,14 +1821,43 @@
       card.appendChild(btn);
 
       if (isActive && !isCompleted) {
-        const pauseBtn = document.createElement('button');
-        pauseBtn.className = 'activate-btn';
-        pauseBtn.style.marginTop = '5px';
-        if (isPaused) { pauseBtn.style.borderColor = '#2a5a2a'; pauseBtn.style.color = '#6aaf7a'; }
-        else { pauseBtn.style.borderColor = '#5a3a1a'; pauseBtn.style.color = '#bf8a4a'; }
-        pauseBtn.textContent = isPaused ? '▶ Resume Sprint' : '⏸ Pause Sprint';
-        pauseBtn.addEventListener('click', () => { if (isPaused) resumeSprint(sprint.id); else pauseSprint(sprint.id); });
-        card.appendChild(pauseBtn);
+        // Once every task's scheduled window has actually passed, there's
+        // nothing left to "pause" — but the sprint stays active (tasks
+        // stay tappable) through a grace window before its verdict locks
+        // in, so a task finished-but-not-yet-ticked has a real chance to
+        // get ticked before it counts against the sprint.
+        const sprintEndH = sprintEvsAll.length ? Math.max(...sprintEvsAll.map(ev => ev.startH + ev.dur / 60)) : null;
+        const inGrace = !isPaused && sprintEndH !== null && nowH >= sprintEndH;
+
+        if (inGrace) {
+          const graceMins  = sprint.graceMins !== undefined ? sprint.graceMins : DEFAULT_GRACE_MINS;
+          const remainMin  = Math.max(0, Math.round((sprintEndH + graceMins / 60 - nowH) * 60));
+          const graceNote = document.createElement('div');
+          graceNote.className = 'sprint-card-time';
+          graceNote.style.marginTop = '2px';
+          graceNote.textContent = remainMin > 0
+            ? 'Time\u2019s up — tick off anything you finished (' + remainMin + 'm to confirm)'
+            : 'Finalizing…';
+          card.appendChild(graceNote);
+
+          const finishBtn = document.createElement('button');
+          finishBtn.className = 'activate-btn';
+          finishBtn.style.marginTop = '5px';
+          finishBtn.style.borderColor = '#2a5a2a';
+          finishBtn.style.color = '#6aaf7a';
+          finishBtn.textContent = '✓ Finish now';
+          finishBtn.addEventListener('click', () => finalizeSprint(sprint.id));
+          card.appendChild(finishBtn);
+        } else {
+          const pauseBtn = document.createElement('button');
+          pauseBtn.className = 'activate-btn';
+          pauseBtn.style.marginTop = '5px';
+          if (isPaused) { pauseBtn.style.borderColor = '#2a5a2a'; pauseBtn.style.color = '#6aaf7a'; }
+          else { pauseBtn.style.borderColor = '#5a3a1a'; pauseBtn.style.color = '#bf8a4a'; }
+          pauseBtn.textContent = isPaused ? '▶ Resume Sprint' : '⏸ Pause Sprint';
+          pauseBtn.addEventListener('click', () => { if (isPaused) resumeSprint(sprint.id); else pauseSprint(sprint.id); });
+          card.appendChild(pauseBtn);
+        }
       }
 
       list.appendChild(card);
@@ -1742,6 +1975,16 @@
     return 'status-fell-off';
   }
 
+  function finalizeSprint(sprintId) {
+    const sprint = sprints.find(s => s.id === sprintId);
+    if (!sprint) return;
+    const status = calcStatus(sprint);
+    completedSprints.push({ sprintId, name: sprint.name, status, tasks: sprint.tasks });
+    activeSprints.delete(sprintId);
+    save(); renderSprints(); renderCompleted();
+    toast('"' + sprint.name + '" — ' + statusLabel(status));
+  }
+
   function checkSprintCompletion() {
     const now  = new Date();
     const nowH = now.getHours() + now.getMinutes() / 60;
@@ -1749,16 +1992,15 @@
       if (pausedSprints.has(sprintId)) return; // frozen until resumed
       const sprintEvs = events.filter(ev => ev.sprintId === sprintId);
       if (!sprintEvs.length) return;
-      const endH = Math.max(...sprintEvs.map(ev => ev.startH + ev.dur / 60));
-      if (nowH >= endH) {
-        const sprint = sprints.find(s => s.id === sprintId);
-        if (!sprint) return;
-        const status = calcStatus(sprint);
-        completedSprints.push({ sprintId, name: sprint.name, status, tasks: sprint.tasks });
-        activeSprints.delete(sprintId);
-        save(); renderSprints(); renderCompleted();
-        toast('"' + sprint.name + '" — ' + statusLabel(status));
-      }
+      const sprint = sprints.find(s => s.id === sprintId);
+      if (!sprint) return;
+      const endH   = Math.max(...sprintEvs.map(ev => ev.startH + ev.dur / 60));
+      const graceH = (sprint.graceMins !== undefined ? sprint.graceMins : DEFAULT_GRACE_MINS) / 60;
+      // Scheduled time being up doesn't finalize anything by itself anymore —
+      // it only starts the grace window. The sprint stays active (and its
+      // tasks stay tappable) until that window actually elapses, or the
+      // person hits "Finish now" themselves.
+      if (nowH >= endH + graceH) finalizeSprint(sprintId);
     });
   }
 
@@ -1854,6 +2096,7 @@
 
   setInterval(checkSprintCompletion, 60000);
   setInterval(checkAutoTrigger, 30000);
+  setInterval(checkReminders, 30000);
   setInterval(() => { if (pausedSprints.size) renderEvents(); }, 15000);
   setInterval(() => { if ([...activeSprints].some(id => !pausedSprints.has(id))) renderSprints(); }, 1000);
 
@@ -2057,7 +2300,7 @@
     if (!alreadyScheduled) {
       const now = new Date(); let cursor = now.getHours() + now.getMinutes()/60;
       sprint.tasks.forEach(t => {
-        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date: todayStr() });
+        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, accent: t.accent, startH: cursor, date: todayStr() });
         cursor += packedDurMin(t.dur) / 60;
       });
     }
@@ -2126,10 +2369,11 @@
         const hPx = Math.max(rawHPx - 2, 14);
 
         const block = document.createElement('div');
-        block.className = 'event-block ' + eventClass(ev.period, ev.type);
+        block.className = 'event-block ' + eventClass(ev.period, ev.type) + (ev.accent ? ' has-accent' : '');
         block.dataset.id = ev.occId;
         block.style.top    = topPx + 'px';
         block.style.height = hPx + 'px';
+        if (ev.accent) block.style.borderLeftColor = ev.accent;
         if (shift > 0) block.style.opacity = '0.6'; // visually distinguish a creeping paused block
         block.innerHTML = ev.dur >= 15
           ? '<div class="event-name">' + (ev.repeat ? '<span class="repeat-mark">↻</span>' : '') + ev.name + '</div>'
@@ -2222,6 +2466,21 @@
   // occurrence would silently drag the whole series' anchor date along
   // with it.
   let qcDateWasEdited = false;
+  let qcEventAccent = undefined; // pending accent color for the event being created/edited, or undefined for none
+
+  function refreshQcAccentBtn() {
+    const btn = document.getElementById('qc-accent-btn');
+    const dot = document.getElementById('qc-accent-dot');
+    btn.classList.toggle('has-accent', !!qcEventAccent);
+    dot.style.background = qcEventAccent || 'transparent';
+  }
+  document.getElementById('qc-accent-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAccentPicker(document.getElementById('qc-accent-btn'), qcEventAccent, (color) => {
+      qcEventAccent = color || undefined;
+      refreshQcAccentBtn();
+    });
+  });
 
   function hToTimeInputValue(h) {
     let hh = Math.floor(h), mm = Math.round((h - hh) * 60);
@@ -2284,6 +2543,8 @@
     qcStartEditable = false;
     editingEventId = null;
     editingEventOccDate = null;
+    qcEventAccent = undefined;
+    refreshQcAccentBtn();
     qcMode = 'sprint';
     sprintScheduleEnabled = false;
     qcDateWasEdited = false;
@@ -2416,6 +2677,7 @@
     document.getElementById('modal-save-to-lib-label').style.display = isSprint ? '' : 'none';
     document.getElementById('qc-desc').style.display        = isSprint ? 'none' : '';
     document.getElementById('qc-repeat').style.display      = isSprint ? 'none' : 'flex';
+    document.getElementById('qc-accent-row').style.display  = isSprint ? 'none' : 'flex';
     document.getElementById('modal-sprint-name').placeholder = isSprint ? 'Name this sprint' : 'Name this Event';
     document.getElementById('modal-save').textContent        = isSprint ? 'Save Sprint' : 'Save Event';
     updateQcDatetimeDisplay();
@@ -2511,6 +2773,8 @@
     document.getElementById('qc-date-input').value = ctx.date;
     document.getElementById('qc-date-label').textContent = formatDatePretty(dateFromStr(ctx.date));
     resetRepeatUI();
+    qcEventAccent = undefined;
+    refreshQcAccentBtn();
 
     // Already has real scheduling info from the drag — the "give this a
     // start time" toggle only applies to sprints that don't have one yet.
@@ -2537,7 +2801,7 @@
     setSprintScheduleEnabled(hasSchedule, sprint);
 
     document.getElementById('modal-overlay').classList.add('open');
-    if (sprint) sprint.tasks.forEach(t => addModalRow(t.name, t.dur, t.period, t.type));
+    if (sprint) sprint.tasks.forEach(t => addModalRow(t.name, t.dur, t.period, t.type, t.accent));
     updateQcDatetimeDisplay();
   }
 
@@ -2592,6 +2856,56 @@
   });
   document.getElementById('cal-scroll-wrap').addEventListener('scroll', closeEventPopover);
 
+  /* ── ACCENT COLOR ── */
+  // A small, deliberately-distinct palette — separate from the period/type
+  // colors already in use, so an accent reads as "I flagged this" rather
+  // than blending into the existing category coloring.
+  const ACCENT_COLORS = ['#e05a4a', '#e08a3a', '#d4b23c', '#5ab06a', '#3aab9e', '#4a90d9', '#9a6ad4', '#d45a9e'];
+
+  function closeAccentPicker() {
+    document.getElementById('accent-picker').classList.remove('open');
+  }
+
+  // `currentColor` is the accent already set (or falsy for none); `onPick`
+  // is called with a hex string, or null when "no accent" is chosen.
+  function openAccentPicker(anchorEl, currentColor, onPick) {
+    const picker = document.getElementById('accent-picker');
+    picker.innerHTML = '';
+
+    const noneBtn = document.createElement('button');
+    noneBtn.className = 'accent-swatch accent-none' + (!currentColor ? ' selected' : '');
+    noneBtn.title = 'No accent';
+    noneBtn.addEventListener('click', (e) => { e.stopPropagation(); onPick(null); closeAccentPicker(); });
+    picker.appendChild(noneBtn);
+
+    ACCENT_COLORS.forEach(color => {
+      const btn = document.createElement('button');
+      btn.className = 'accent-swatch' + (currentColor === color ? ' selected' : '');
+      btn.style.background = color;
+      btn.addEventListener('click', (e) => { e.stopPropagation(); onPick(color); closeAccentPicker(); });
+      picker.appendChild(btn);
+    });
+
+    picker.classList.add('open');
+    const rect = anchorEl.getBoundingClientRect();
+    const pickerW = 128, pickerH = picker.offsetHeight || 76;
+    let left = rect.left;
+    if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
+    let top = rect.bottom + 6;
+    const tabBar = document.getElementById('mobile-tabs');
+    const bottomSafe = (tabBar && getComputedStyle(tabBar).display !== 'none') ? tabBar.offsetHeight : 0;
+    if (top + pickerH > window.innerHeight - bottomSafe - 8) top = rect.top - pickerH - 6;
+    picker.style.left = Math.max(8, left) + 'px';
+    picker.style.top  = Math.max(8, top) + 'px';
+  }
+
+  document.addEventListener('click', (e) => {
+    const picker = document.getElementById('accent-picker');
+    if (picker.classList.contains('open') && !picker.contains(e.target) && !e.target.closest('.accent-swatch-btn')) {
+      closeAccentPicker();
+    }
+  });
+
   function openEventEdit(ev, occDate) {
     resetQuickCreateUI();
     editingEventId = ev.id;
@@ -2626,6 +2940,11 @@
 
     document.getElementById('qc-repeat').style.display = 'flex';
     populateRepeatUI(ev.repeat);
+
+    document.getElementById('qc-accent-row').style.display = 'flex';
+    qcEventAccent = ev.accent;
+    refreshQcAccentBtn();
+
     updateQcDatetimeDisplay();
 
     document.getElementById('modal-overlay').classList.add('open');
@@ -2689,6 +3008,7 @@
           if (qcDateWasEdited && qcDatetimeAnchor.date) ev.date = qcDatetimeAnchor.date; // moves the (anchor, for a series) date
         }
         ev.period = periodForHour(ev.startH);
+        ev.accent = qcEventAccent || undefined;
         // Repeat settings apply to the whole series, not just the clicked
         // occurrence — exdates (individually-removed days) are left as-is.
         const repeat = readRepeatFromUI();
@@ -2712,6 +3032,7 @@
           id: genId(), name, dur, startH, date,
           period: periodForHour(startH), type: 'evt',
           desc: desc || undefined,
+          accent: qcEventAccent || undefined,
         };
         if (repeat) newEvent.repeat = repeat;
         events.push(newEvent);
@@ -2722,13 +3043,13 @@
 
       // qcMode === 'sprint'
       if (!modalTasks.length) { toast('Add at least one task'); return; }
-      const tasksCopy = modalTasks.map(t => ({ id: genId(), name: t.name, dur: t.dur, period: t.period, type: t.type }));
+      const tasksCopy = modalTasks.map(t => ({ id: genId(), name: t.name, dur: t.dur, period: t.period, type: t.type, accent: t.accent }));
       const sprint = { id: genId(), name, tasks: tasksCopy, scheduledH: startH, date, recoveryMins: 10 };
       sprints.push(sprint);
 
       let cursor = startH;
       tasksCopy.forEach(t => {
-        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date });
+        events.push({ id: genId(), sprintId: sprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, accent: t.accent, startH: cursor, date });
         cursor += packedDurMin(t.dur) / 60;
       });
 
@@ -2749,7 +3070,7 @@
     // ── Original Sprint Studio flow (manual, unscheduled) ──
     if (!name) { toast('Give this sprint a name first'); return; }
     if (!modalTasks.length) { toast('Add at least one task'); return; }
-    const tasksCopy = modalTasks.map(t => ({ id: genId(), name: t.name, dur: t.dur, period: t.period, type: t.type }));
+    const tasksCopy = modalTasks.map(t => ({ id: genId(), name: t.name, dur: t.dur, period: t.period, type: t.type, accent: t.accent }));
     const saveToLib = document.getElementById('modal-save-to-lib').checked;
     let savedSprint = null;
 
@@ -2782,7 +3103,7 @@
             events = events.filter(ev => ev.sprintId !== sprintObj.id);
             let cursor = sprintObj.scheduledH;
             tasksCopy.forEach(t => {
-              events.push({ id: genId(), sprintId: sprintObj.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date: sprintObj.date });
+              events.push({ id: genId(), sprintId: sprintObj.id, name: t.name, dur: t.dur, period: t.period, type: t.type, accent: t.accent, startH: cursor, date: sprintObj.date });
               cursor += packedDurMin(t.dur) / 60;
             });
           } else if (!sprintScheduleEnabled && sprintObj.date !== undefined) {
@@ -2812,7 +3133,7 @@
         savedSprint.recoveryMins = 10;
         let cursor = savedSprint.scheduledH;
         tasksCopy.forEach(t => {
-          events.push({ id: genId(), sprintId: savedSprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, startH: cursor, date: savedSprint.date });
+          events.push({ id: genId(), sprintId: savedSprint.id, name: t.name, dur: t.dur, period: t.period, type: t.type, accent: t.accent, startH: cursor, date: savedSprint.date });
           cursor += packedDurMin(t.dur) / 60;
         });
       }
@@ -2890,7 +3211,7 @@
       // check a tap would need — cancels it, exactly like it would abandon
       // a tap. A small charging indicator shows the hold is registering, so
       // it doesn't just feel like nothing happened for the first half-second.
-      const LONG_PRESS_MS = 450;
+      const LONG_PRESS_MS = 650;
       let touchStartY = 0, touchStartHRaw = 0, touchMoved = false, touching = false;
       let holdTimer = null, holdGhost = null, holdFired = false;
 
@@ -2943,7 +3264,14 @@
         if (!touching) return;
         touching = false;
         cancelHold();
-        if (holdFired) e.preventDefault(); // suppress the synthetic click a completed hold would otherwise also fire
+        // Always suppress the synthetic mousedown→mouseup→click sequence a
+        // touch would otherwise fire ~300ms later — not just after a
+        // completed hold. This element still carries the desktop mouse
+        // handlers (for click-drag), so a short tap that never reached the
+        // hold threshold would otherwise still land on that mouseup's
+        // "plain click" fallback and create something instantly — which is
+        // exactly the "insta touch" the hold was supposed to prevent.
+        e.preventDefault();
       }
       el.addEventListener('touchend', endTouch, { passive: false });
       el.addEventListener('touchcancel', endTouch, { passive: false });
@@ -2953,6 +3281,7 @@
   /* ── SPRINT LIBRARY PANEL ── */
   function openLibraryPanel() {
     document.getElementById('sprints-view').style.display = 'none';
+    document.getElementById('backups-view').classList.remove('open');
     document.getElementById('library-view').classList.add('open');
     renderLibraryPanel();
   }
@@ -2960,6 +3289,73 @@
   function closeLibraryPanel() {
     document.getElementById('library-view').classList.remove('open');
     document.getElementById('sprints-view').style.display = '';
+  }
+
+  function openBackupsPanel() {
+    document.getElementById('sprints-view').style.display = 'none';
+    document.getElementById('library-view').classList.remove('open');
+    document.getElementById('backups-view').classList.add('open');
+    renderBackupsList();
+  }
+
+  function closeBackupsPanel() {
+    document.getElementById('backups-view').classList.remove('open');
+    document.getElementById('sprints-view').style.display = '';
+  }
+
+  function renderBackupsList() {
+    const wrap = document.getElementById('backups-list');
+    wrap.innerHTML = '';
+    const log = loadLS('sprint_recovery_log', []);
+    if (!log.length) {
+      wrap.innerHTML = '<p style="font-size:11px;color:var(--text3);">No backups yet — one gets taken automatically the first time a sync would overwrite something, or the day rolls over.</p>';
+      return;
+    }
+    [...log].reverse().forEach(snap => {
+      const realIdx = log.indexOf(snap);
+      const d = new Date(snap.at);
+      const item = document.createElement('div');
+      item.className = 'backup-item';
+      const time = document.createElement('div');
+      time.className = 'backup-item-time';
+      time.textContent = formatDatePretty(d) + ' · ' + formatTimePretty(d.getHours() + d.getMinutes() / 60);
+      const meta = document.createElement('div');
+      meta.className = 'backup-item-meta';
+      meta.textContent = snap.sprints.length + ' sprint' + (snap.sprints.length === 1 ? '' : 's') + ', ' +
+        snap.events.length + ' event' + (snap.events.length === 1 ? '' : 's') +
+        (snap.reason === 'daily' ? ' · daily checkpoint' : ' · taken before a sync');
+      const btn = document.createElement('button');
+      btn.className = 'backup-item-restore';
+      btn.textContent = 'Restore this';
+      btn.addEventListener('click', () => restoreFromBackup(realIdx));
+      item.append(time, meta, btn);
+      wrap.appendChild(item);
+    });
+  }
+
+  function restoreFromBackup(idx) {
+    const log = loadLS('sprint_recovery_log', []);
+    const snap = log[idx];
+    if (!snap) return;
+    if (!confirm('Replace what\u2019s here now with this backup? Whatever\u2019s currently here gets its own backup first, so this can still be undone.')) return;
+    saveRecoverySnapshot('before-restore'); // don't lose the current state either, in case this was a mistake
+
+    sprints          = snap.sprints;
+    events           = snap.events;
+    completedSprints = snap.completedSprints;
+    sprintLibrary    = snap.sprintLibrary;
+    // A snapshot has no notion of "what's actively running right now" —
+    // nothing from it was mid-sprint, so nothing should look mid-sprint
+    // after restoring it either.
+    activeSprints = new Set();
+    doneTasks     = new Set();
+    pausedSprints = new Set();
+    pausedAt      = {};
+
+    save();
+    renderSprints(); renderEvents(); renderCompleted(); buildLibrary();
+    closeBackupsPanel();
+    toast('Restored from backup');
   }
 
   function renderLibraryPanel() {
@@ -3061,6 +3457,8 @@
 
   document.getElementById('open-library').addEventListener('click', openLibraryPanel);
   document.getElementById('close-library').addEventListener('click', closeLibraryPanel);
+  document.getElementById('open-backups').addEventListener('click', openBackupsPanel);
+  document.getElementById('close-backups').addEventListener('click', closeBackupsPanel);
 
   // Open modal to edit a library preset
   function openModalForLibrary(preset) {
@@ -3070,7 +3468,7 @@
     document.getElementById('modal-tasks').innerHTML = '';
     document.getElementById('modal-sprint-name').value = preset.name;
     document.getElementById('modal-overlay').classList.add('open');
-    preset.tasks.forEach(t => addModalRow(t.name, t.dur, t.period, t.type));
+    preset.tasks.forEach(t => addModalRow(t.name, t.dur, t.period, t.type, t.accent));
   }
 
   /* ── DISCREPANCY MODAL ── */
@@ -3097,8 +3495,8 @@
     this.classList.toggle('active', cb.checked);
   });
 
-  function addModalRow(name, dur, period, type) {
-    const task = { id: modalUid++, name, dur, period: period || 'wind', type: type || 'anchor' };
+  function addModalRow(name, dur, period, type, accent) {
+    const task = { id: modalUid++, name, dur, period: period || 'wind', type: type || 'anchor', accent };
     modalTasks.push(task);
 
     const list = document.getElementById('modal-tasks');
@@ -3118,14 +3516,30 @@
     saveTask.addEventListener('click', () => {
       if (!task.name.trim()) { toast('Name the task first'); return; }
       if (library.find(l => l.name === task.name)) { toast('Already in library'); return; }
-      library.push({ name: task.name, dur: task.dur, period: task.period, type: task.type });
+      library.push({ name: task.name, dur: task.dur, period: task.period, type: task.type, accent: task.accent });
       saveLS('sprint_library', library);
       buildLibrary();
       toast('"' + task.name + '" saved to library');
     });
     const del = document.createElement('button'); del.className = 'mt-ibtn del'; del.textContent = '✕';
     del.addEventListener('click', () => { modalTasks = modalTasks.filter(t => t.id !== task.id); row.remove(); updateQcDatetimeDisplay(); });
-    top.append(ni, di, ml2, up, dn, saveTask, del);
+
+    const accentBtn = document.createElement('button');
+    accentBtn.className = 'mt-ibtn accent-swatch-btn';
+    accentBtn.title = 'Accent color';
+    const accentDot = document.createElement('span'); accentDot.className = 'accent-dot';
+    accentBtn.appendChild(accentDot);
+    function refreshAccentBtn() {
+      accentBtn.classList.toggle('has-accent', !!task.accent);
+      accentDot.style.background = task.accent || 'transparent';
+    }
+    refreshAccentBtn();
+    accentBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAccentPicker(accentBtn, task.accent, (color) => { task.accent = color || undefined; refreshAccentBtn(); });
+    });
+
+    top.append(ni, di, ml2, up, dn, saveTask, accentBtn, del);
 
     /* Period row */
     const pr = document.createElement('div'); pr.className = 'mt-periods';
@@ -3205,30 +3619,56 @@
         toast('"' + item.name + '" removed from task library');
       });
       row.append(dot, nm, dur, del);
-      row.addEventListener('click', () => { addModalRow(item.name, item.dur, item.period, item.type); toast('"' + item.name + '" added'); });
+      row.addEventListener('click', () => { addModalRow(item.name, item.dur, item.period, item.type, item.accent); toast('"' + item.name + '" added'); });
       el.appendChild(row);
     });
   }
 
   /* ── FIRESTORE SYNC ── */
+  // A rolling local safety net: keep a handful of recent snapshots of the
+  // day-scoped data, so a bad sync — or any other mishap — is a restore
+  // away instead of a dead end. Capped so it can't grow without bound.
+  const RECOVERY_LOG_CAP = 10;
+  function saveRecoverySnapshot(reason) {
+    const log = loadLS('sprint_recovery_log', []);
+    log.push({
+      at: Date.now(),
+      reason,
+      sprints: JSON.parse(JSON.stringify(sprints)),
+      events: JSON.parse(JSON.stringify(events)),
+      completedSprints: JSON.parse(JSON.stringify(completedSprints)),
+      sprintLibrary: JSON.parse(JSON.stringify(sprintLibrary)),
+    });
+    while (log.length > RECOVERY_LOG_CAP) log.shift();
+    saveLS('sprint_recovery_log', log);
+  }
+
   window._fsApply = function(d) {
     if (!d) return;
 
-    // The core fix: never let an older write clobber a newer one. The old
-    // guard here only checked "is this remote save dated today" — but that's
-    // a per-CALENDAR-DAY check, not a real recency check, so two devices
-    // saving on the same day would just blindly overwrite whichever one's
-    // write happened to land in Firestore last, no matter which one was
-    // actually more current. This is what made opening a second device
-    // wipe out work from the first: the second device's very first local
-    // save (or its own stale, not-yet-merged state) could reach Firestore
-    // and stomp a device that had genuinely newer edits.
+    // Never let an older write clobber a newer one — every save carries a
+    // real timestamp, and a device refuses to apply anything older than
+    // the freshest state it already has.
     //
-    // Now every save carries a real timestamp, and a device simply refuses
-    // to apply anything older than the freshest state it already has.
+    // One deliberate exception: the device's very FIRST real sync. Before
+    // that happens, dailyReset() has already run locally and called
+    // save() — which bumps lastAppliedAt to "right now" purely as local
+    // housekeeping, before this device has ever actually reconciled with
+    // the server. That local timestamp has no real claim to being "the
+    // freshest thing" — it's not synced data, it's just today's clock —
+    // but it's chronologically later than genuine data another device
+    // saved yesterday, so the plain recency check would reject that real
+    // data on exactly this comparison. That's what let a brand-new (or
+    // long-unopened) device silently fail to pick up real data on its
+    // first sync, then go on to push its own empty state, which — now
+    // legitimately newer by the time anyone looked at it — overwrote
+    // every other device's real data once they synced. Skipping the gate
+    // specifically for the first sync (tracked by the module script) is
+    // what closes that off.
     const incomingAt = d.savedAt || 0;
-    if (incomingAt <= lastAppliedAt) return; // we already have this, or something newer
-    lastAppliedAt = incomingAt;
+    const isFirstSync = !window._fsInitialSyncDone;
+    if (!isFirstSync && incomingAt <= lastAppliedAt) return; // we already have this, or something newer
+    lastAppliedAt = Math.max(lastAppliedAt, incomingAt);
     saveLS('sprint_last_synced_at', lastAppliedAt);
 
     let changed = false;
@@ -3237,23 +3677,30 @@
     if (d.sprintLibrary !== undefined) { sprintLibrary = d.sprintLibrary; saveLS('sprint_lib_presets', sprintLibrary); buildLibrary(); }
     if (d.uid !== undefined && d.uid > uid) uid = d.uid;
 
-    // Daily-scoped data only mirrors if the remote save is from the SAME
-    // calendar day as this device. This is a SEPARATE guard from the
-    // timestamp check above — it exists so a device that's still on
-    // yesterday (tab left open overnight, not yet rolled over) can't push
-    // yesterday's sprints back onto a device that's already moved on to
-    // today, even though that stale write might technically have a newer
-    // clock timestamp.
-    const sameDay = d.date === todayStr();
-    if (sameDay) {
-      if (d.sprints !== undefined)          { sprints = d.sprints; changed = true; }
-      if (d.events !== undefined)           { events  = d.events;  changed = true; }
-      if (d.completedSprints !== undefined) { completedSprints = d.completedSprints; changed = true; }
-      if (d.activeSprints !== undefined)    { activeSprints = new Set(d.activeSprints); changed = true; }
-      if (d.doneTasks !== undefined)        { doneTasks = new Set(d.doneTasks); changed = true; }
-      if (d.pausedSprints !== undefined)    { pausedSprints = new Set(d.pausedSprints); changed = true; }
-      if (d.pausedAt !== undefined)         { pausedAt = d.pausedAt; changed = true; }
-    }
+    // There used to be a second guard here requiring d.date to match
+    // today's date before mirroring sprints/events at all — the idea being
+    // that a device still on yesterday (tab left open overnight) shouldn't
+    // push yesterday's data onto one that's already rolled over. It was
+    // wrong in a much worse way than the problem it tried to solve:
+    // Firestore's stored `date` only updates when SOME device saves, so it
+    // legitimately lags behind "today" until that happens — meaning any
+    // device syncing before anyone had saved yet today (a brand-new
+    // machine's very first sync, most severely) would silently skip
+    // applying real sprints/events entirely, look "synced" anyway since
+    // the timestamp still advanced, then push its own empty state back
+    // with a timestamp that correctly out-aged everyone else's real data.
+    // That's the exact mechanism that deleted real data across devices.
+    // dailyReset() and the periodic day-rollover check are the actual
+    // right place to keep a device from ever saving stale content in the
+    // first place — recency (the timestamp check above) is enough here.
+    if (d.sprints !== undefined || d.events !== undefined) saveRecoverySnapshot('before-sync');
+    if (d.sprints !== undefined)          { sprints = d.sprints; changed = true; }
+    if (d.events !== undefined)           { events  = d.events;  changed = true; }
+    if (d.completedSprints !== undefined) { completedSprints = d.completedSprints; changed = true; }
+    if (d.activeSprints !== undefined)    { activeSprints = new Set(d.activeSprints); changed = true; }
+    if (d.doneTasks !== undefined)        { doneTasks = new Set(d.doneTasks); changed = true; }
+    if (d.pausedSprints !== undefined)    { pausedSprints = new Set(d.pausedSprints); changed = true; }
+    if (d.pausedAt !== undefined)         { pausedAt = d.pausedAt; changed = true; }
 
     if (changed) {
       saveLS('sprint_sprints',    sprints);
@@ -3284,6 +3731,17 @@
     if (el) el.classList.add('synced');
   };
 
+  // A failed push used to just log to the console — invisible unless you
+  // happened to have DevTools open. Now it's an actual toast, and the
+  // retry it promises is real (see fsPush's online listener + periodic
+  // backstop above), not just a reassuring word.
+  window._fsOnPushFailed = function() {
+    toast('Sync failed — will retry automatically');
+  };
+  window._fsOnPushRecovered = function() {
+    toast('Back in sync');
+  };
+
   /* ── INIT ── */
   document.querySelectorAll('.cal-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === calMode));
   dailyReset();
@@ -3295,6 +3753,7 @@
   setupDragToCreate();
   checkSprintCompletion();
   checkAutoTrigger();
+  checkReminders();
 
   /* ── MOBILE TABS ── */
   (function() {
