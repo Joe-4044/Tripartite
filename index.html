@@ -413,6 +413,11 @@
     font-size: 10.5px; color: #6a92af; font-weight: 500; padding: 3px 7px; white-space: nowrap; overflow: hidden;
   }
   .cal-col.dragging-create { cursor: crosshair; }
+  .drag-ghost.hold-charging { animation: holdCharge 0.45s ease-out forwards; transform-origin: top; }
+  @keyframes holdCharge {
+    0%   { opacity: 0.3; transform: scaleY(0.4); }
+    100% { opacity: 1;   transform: scaleY(1); }
+  }
 
   /* ── MODAL ── */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100; align-items: center; justify-content: center; padding: 24px; }
@@ -2858,18 +2863,22 @@
         openQuickCreate({ date: ds, startH: lo, endH: hi });
       });
 
-      // Touch: a real drag-to-resize gesture would mean calling
-      // preventDefault() on touchmove the instant it looks like a vertical
-      // drag rather than a scroll — exactly the scroll-vs-gesture
-      // disambiguation that's genuinely unreliable across mobile browsers
-      // without a physical device to verify against. So on touch, tap
-      // instead of drag: track movement but never preventDefault on
-      // touchmove, so vertical scroll (and horizontal scroll, in Week mode)
-      // is never interfered with even slightly. A touch that didn't move
-      // opens the same 1-hour default block the "plain click" fallback
-      // above already uses — from there the start/end time inputs (already
-      // fully editable) handle fine-tuning, so nothing is actually lost.
+      // Touch: press-and-hold to create, not a plain tap — a bare tap is too
+      // easy to trigger by accident (a thumb brushing the calendar while
+      // scrolling past it, or just steadying a swipe). Holding still for
+      // LONG_PRESS_MS is a much more deliberate signal, and any real
+      // movement before that — the same "was this actually a scroll?"
+      // check a tap would need — cancels it, exactly like it would abandon
+      // a tap. A small charging indicator shows the hold is registering, so
+      // it doesn't just feel like nothing happened for the first half-second.
+      const LONG_PRESS_MS = 450;
       let touchStartY = 0, touchStartHRaw = 0, touchMoved = false, touching = false;
+      let holdTimer = null, holdGhost = null, holdFired = false;
+
+      function cancelHold() {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+        if (holdGhost) { holdGhost.remove(); holdGhost = null; }
+      }
 
       el.addEventListener('touchstart', (e) => {
         if (e.target.closest('.event-block, .recovery-block')) return;
@@ -2879,23 +2888,46 @@
         touchStartHRaw = Math.max(0, Math.min(24, touchStartY / HOUR_PX));
         touchMoved = false;
         touching = true;
+        holdFired = false;
+
+        const snapped = Math.round(touchStartHRaw / SNAP_H) * SNAP_H;
+        holdGhost = document.createElement('div');
+        holdGhost.className = 'drag-ghost hold-charging';
+        holdGhost.style.top = (snapped * HOUR_PX) + 'px';
+        holdGhost.style.height = (SNAP_H * HOUR_PX) + 'px';
+        holdGhost.style.animationDuration = LONG_PRESS_MS + 'ms';
+        holdGhost.innerHTML = '<div class="drag-ghost-label">' + formatTimePretty(snapped) + '</div>';
+        el.appendChild(holdGhost);
+
+        holdTimer = setTimeout(() => {
+          holdTimer = null;
+          if (!touching || touchMoved) return;
+          holdFired = true;
+          if (holdGhost) { holdGhost.remove(); holdGhost = null; }
+          if (navigator.vibrate) navigator.vibrate(10); // subtle confirmation where supported (not iOS Safari)
+          const a = Math.round(touchStartHRaw / SNAP_H) * SNAP_H;
+          openQuickCreate({ date: ds, startH: a, endH: a + 1 });
+        }, LONG_PRESS_MS);
       }, { passive: true });
 
       el.addEventListener('touchmove', (e) => {
         if (!touching) return;
         const rect = el.getBoundingClientRect();
         const curY = e.touches[0].clientY - rect.top;
-        if (Math.abs(curY - touchStartY) > 10) touchMoved = true;
+        if (Math.abs(curY - touchStartY) > 10) {
+          touchMoved = true;
+          cancelHold(); // moved enough to be a scroll — abandon the hold
+        }
       }, { passive: true });
 
-      el.addEventListener('touchend', (e) => {
+      function endTouch(e) {
         if (!touching) return;
         touching = false;
-        if (touchMoved) return; // was a scroll — leave it alone, create nothing
-        e.preventDefault(); // suppress the synthetic click a tap would otherwise also fire (would double-create)
-        const a = Math.round(touchStartHRaw / SNAP_H) * SNAP_H;
-        openQuickCreate({ date: ds, startH: a, endH: a + 1 });
-      }, { passive: false });
+        cancelHold();
+        if (holdFired) e.preventDefault(); // suppress the synthetic click a completed hold would otherwise also fire
+      }
+      el.addEventListener('touchend', endTouch, { passive: false });
+      el.addEventListener('touchcancel', endTouch, { passive: false });
     });
   }
 
