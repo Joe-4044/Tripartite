@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#1a1f2a" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -158,7 +158,7 @@
     --low-bg:  #faeedd; --low-br:  #c88850; --low-text: #7a4618;
   }
 
-  html { background: var(--bg); } body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 13px; transition: background 0.2s, color 0.2s; padding: 0; margin: 0; }
+  html { background: var(--bg); } body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 13px; transition: background 0.2s, color 0.2s; padding: 0; margin: 0; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 
   .app { display: flex; flex-direction: column; }
 
@@ -435,8 +435,8 @@
 
   /* Quick-create date/time row */
   .qc-datetime {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 13px; color: var(--text2);
+    display: flex; align-items: center; gap: 8px; row-gap: 6px;
+    font-size: 13px; color: var(--text2); flex-wrap: wrap;
   }
 
   /* Repeat control (Event mode) */
@@ -534,7 +534,7 @@
   .modal-add-btn { width: 100%; height: 38px; border-radius: 8px; border: 1px dashed var(--border); background: transparent; color: var(--text3); font-size: 12px; font-family: inherit; cursor: pointer; flex-shrink: 0; }
   .modal-add-btn:hover { background: var(--card2); }
 
-  .modal-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+  .modal-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; flex-wrap: wrap; }
   .modal-save { flex: 1; height: 40px; border-radius: 8px; border: none; background: var(--save-bg); color: #fff; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; }
   .modal-save:hover { filter: brightness(1.2); }
   .modal-cancel { height: 40px; padding: 0 19px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 13px; font-family: inherit; cursor: pointer; }
@@ -550,7 +550,7 @@
   .lib-item-del { opacity: 0; width: 18px; height: 18px; flex-shrink: 0; background: none; border: none; color: var(--text3); font-size: 15px; line-height: 1; cursor: pointer; border-radius: 4px; transition: opacity 0.1s; }
   .lib-item:hover .lib-item-del { opacity: 0.7; }
   .lib-item-del:hover { opacity: 1 !important; color: #e05a4a; background: rgba(224,90,74,0.12); }
-  .event-popover { position: fixed; z-index: 60; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; width: 220px; box-shadow: 0 8px 28px rgba(0,0,0,0.4); }
+  .event-popover { position: fixed; z-index: 60; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; width: 220px; max-width: calc(100vw - 16px); box-shadow: 0 8px 28px rgba(0,0,0,0.4); }
   .event-popover-title { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 2px; word-break: break-word; }
   .event-popover-time { font-size: 10px; color: var(--text3); margin-bottom: 6px; }
   .event-popover-desc { font-size: 11px; color: var(--text2); white-space: pre-wrap; margin-bottom: 8px; max-height: 140px; overflow-y: auto; }
@@ -560,7 +560,7 @@
   .event-popover-actions button:hover { color: var(--text); background: var(--border); }
 
   /* ── MISSION BRIEFING ── */
-  .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
+  .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
   .confirm-overlay.open { display: flex; }
 
   .mission-card {
@@ -569,6 +569,9 @@
     border-radius: 16px;
     padding: 25px;
     width: 360px;
+    max-width: 100%;
+    max-height: 100%;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -707,9 +710,8 @@
 
   @media (max-width: 699px) {
     .mobile-tabs { display: flex; }
-    body { padding-bottom: 56px; }
-    .left  { display: flex; border-bottom: none; height: calc(100vh - 56px); overflow: hidden; flex-direction: column; }
-    .right { display: none; height: calc(100vh - 56px); overflow: hidden; flex-direction: column; }
+    .left  { display: flex; border-bottom: none; height: calc(100vh - 56px - env(safe-area-inset-bottom)); overflow: hidden; flex-direction: column; }
+    .right { display: none; height: calc(100vh - 56px - env(safe-area-inset-bottom)); overflow: hidden; flex-direction: column; }
     .left.tab-active  { display: flex; }
     .right.tab-active { display: flex; }
     .left.tab-hidden  { display: none; }
@@ -723,10 +725,42 @@
     .collapse-btn { display: none; }
     /* Full screen modals */
     .modal-overlay { padding: 0; align-items: flex-end; }
-    .modal { flex-direction: column; max-width: 100%; max-height: 95vh; border-radius: 16px 16px 0 0; }
+    .modal { flex-direction: column; max-width: 100%; max-height: 95vh; border-radius: 16px 16px 0 0; padding-bottom: env(safe-area-inset-bottom); }
     .modal-left { border-right: none; border-bottom: 1px solid var(--border2); max-height: 55vh; overflow-y: auto; }
-    .modal-right { max-height: 30vh; overflow-y: auto; }
+    .modal-right { width: 100%; max-height: 30vh; overflow-y: auto; }
     .modal-tasks { max-height: 28vh; }
+
+    /* The primary action gets its own full-width row so it's never squeezed
+       or wrapped mid-word next to Cancel/Delete — those share whatever
+       space is left, wrapping onto more rows as needed. */
+    .modal-save { order: -1; flex: 1 1 100%; }
+    .lib-toggle-row, .modal-cancel { flex: 1 1 auto; }
+
+    /* Below 16px, iOS Safari zooms the whole page in on focus and doesn't
+       reliably zoom back out — every text/date/time/number field the
+       person actually types or taps into needs to clear that threshold. */
+    .mt-name, .mt-dur, .qc-desc, .qc-repeat-select, .qc-repeat-num,
+    .qc-repeat-date, #qc-date-input, #qc-start-input, #qc-end-input {
+      font-size: 16px !important;
+    }
+
+    /* A hover-revealed delete button is unreachable with a finger — there's
+       no hover state to reveal it. Keep it visible (dimmed, not competing
+       with the row) instead of gating it behind a gesture touch can't do. */
+    .lib-item-del { opacity: 0.5; }
+
+    /* "···" was a ~20×18px hit target — enlarge without changing how the
+       glyph itself looks by growing the invisible padding around it. */
+    .sprint-menu-btn { padding: 10px; margin: -10px; font-size: 16px; }
+
+    /* Room for the home indicator on notched phones so the tab bar's
+       labels don't sit flush against it. */
+    .mobile-tabs { height: calc(56px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+    body { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+
+    /* Keep clear of the tab bar, and let a long message wrap instead of
+       running off the edges of a narrow screen. */
+    .toast { bottom: calc(66px + env(safe-area-inset-bottom)); max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
   }
 
   .collapse-btn {
@@ -2506,8 +2540,12 @@
     let left = rect.right + 8;
     if (left + popW > window.innerWidth - 8) left = rect.left - popW - 8;
     if (left < 8) left = Math.min(rect.left, window.innerWidth - popW - 8);
+    // Keep clear of the fixed bottom tab bar on mobile — window.innerHeight
+    // includes that space, but content sitting there would render behind it.
+    const tabBar = document.getElementById('mobile-tabs');
+    const bottomSafe = (tabBar && getComputedStyle(tabBar).display !== 'none') ? tabBar.offsetHeight : 0;
     let top = rect.top;
-    if (top + popH > window.innerHeight - 8) top = window.innerHeight - popH - 8;
+    if (top + popH > window.innerHeight - bottomSafe - 8) top = window.innerHeight - bottomSafe - popH - 8;
     pop.style.left = Math.max(8, left) + 'px';
     pop.style.top  = Math.max(8, top) + 'px';
 
@@ -2819,6 +2857,45 @@
         if (ghost) { ghost.remove(); ghost = null; }
         openQuickCreate({ date: ds, startH: lo, endH: hi });
       });
+
+      // Touch: a real drag-to-resize gesture would mean calling
+      // preventDefault() on touchmove the instant it looks like a vertical
+      // drag rather than a scroll — exactly the scroll-vs-gesture
+      // disambiguation that's genuinely unreliable across mobile browsers
+      // without a physical device to verify against. So on touch, tap
+      // instead of drag: track movement but never preventDefault on
+      // touchmove, so vertical scroll (and horizontal scroll, in Week mode)
+      // is never interfered with even slightly. A touch that didn't move
+      // opens the same 1-hour default block the "plain click" fallback
+      // above already uses — from there the start/end time inputs (already
+      // fully editable) handle fine-tuning, so nothing is actually lost.
+      let touchStartY = 0, touchStartHRaw = 0, touchMoved = false, touching = false;
+
+      el.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.event-block, .recovery-block')) return;
+        if (e.touches.length !== 1) return; // ignore pinch/multi-touch
+        const rect = el.getBoundingClientRect();
+        touchStartY = e.touches[0].clientY - rect.top;
+        touchStartHRaw = Math.max(0, Math.min(24, touchStartY / HOUR_PX));
+        touchMoved = false;
+        touching = true;
+      }, { passive: true });
+
+      el.addEventListener('touchmove', (e) => {
+        if (!touching) return;
+        const rect = el.getBoundingClientRect();
+        const curY = e.touches[0].clientY - rect.top;
+        if (Math.abs(curY - touchStartY) > 10) touchMoved = true;
+      }, { passive: true });
+
+      el.addEventListener('touchend', (e) => {
+        if (!touching) return;
+        touching = false;
+        if (touchMoved) return; // was a scroll — leave it alone, create nothing
+        e.preventDefault(); // suppress the synthetic click a tap would otherwise also fire (would double-create)
+        const a = Math.round(touchStartHRaw / SNAP_H) * SNAP_H;
+        openQuickCreate({ date: ds, startH: a, endH: a + 1 });
+      }, { passive: false });
     });
   }
 
